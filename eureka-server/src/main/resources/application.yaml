@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: eureka-server
+  output:
+    ansi:
+      enabled: ALWAYS
+  threads:
+    virtual:
+      enabled: true
+server:
+  port: 8761
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+  server:
+    enable-self-preservation: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+logging:
+  level:
+    root: info  # Set the global logging level to TRACE
+    com.netflix.discovery: info  # Log for Eureka Discovery
+    com.netflix.eureka: info  # Log for Eureka Server
+    org.springframework.cloud.netflix.eureka.server: info  # Log for Eureka Server components
+
