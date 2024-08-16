@@ -1,19 +1,20 @@
 
 server:
-  port: 8083
-
+  port: 8084
 spring:
   application:
-    name: auth-service
+    name: user-service
   output:
     ansi:
       enabled: ALWAYS
   threads:
     virtual:
       enabled: true
+  main:
+    allow-circular-references: true
 
   datasource:
-    url: jdbc:h2:mem:auth-service
+    url: jdbc:h2:mem:user-service
     username: sa
     password: sa
     driver-class-name: org.h2.Driver
@@ -23,7 +24,9 @@ spring:
     show-sql: true
   h2:
     console:
+      path: /h2-console
       enabled: true
+
 eureka:
   client:
     service-url:
@@ -33,9 +36,9 @@ eureka:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 3
     lease-expiration-duration-in-seconds: 5
-
 management:
   endpoints:
     web:
       exposure:
         include: "*"
+
