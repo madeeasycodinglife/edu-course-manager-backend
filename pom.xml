@@ -26,6 +26,7 @@
         <module>course-service</module>
         <module>instance-service</module>
         <module>spring-cloud-gateway</module>
+        <module>auth-service</module>
     </modules>
     <scm>
         <connection/>

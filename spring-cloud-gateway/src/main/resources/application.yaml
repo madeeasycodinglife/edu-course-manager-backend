@@ -22,21 +22,21 @@ spring:
 
       routes:
 
-        - id: user-service
-          uri: lb://user-service
+        - id: course-service
+          uri: lb://course-service
           predicates:
-            - Path=/user-service/**
+            - Path=/course-service/**
+
+        - id: instance-service
+          uri: lb://instance-service
+          predicates:
+            - Path=/instance-service/**
+
 
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/auth-service/**
-
-
-        - id: exam-service
-          uri: lb://exam-service
-          predicates:
-            - Path=/exam-service/**
 
 
 
