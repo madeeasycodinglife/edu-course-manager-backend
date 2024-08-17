@@ -25,24 +25,64 @@ spring:
         - id: course-service
           uri: lb://course-service
           predicates:
-            - Path=/course-service/**
+            - Path=/api/courses/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: fault-service
+                fallbackUri: forward:/fallback/course-service
 
-        - id: instance-service
-          uri: lb://instance-service
+
+        - id: course-instance-service
+          uri: lb://course-instance-service
           predicates:
-            - Path=/instance-service/**
+            - Path=/api/instances/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: myCircuitBreaker
+                fallbackUri: forward:/fallback/instance-service
 
 
         - id: auth-service
           uri: lb://auth-service
           predicates:
             - Path=/auth-service/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: myCircuitBreaker
+                fallbackUri: forward:/fallback/auth-service
 
 
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/user-service/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: myCircuitBreaker
+                fallbackUri: forward:/fallback/user-service
 
   output:
     ansi:
       enabled: ALWAYS
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      fault-service:
+        registerHealthIndicator: true
+        failureRateThreshold: 20
+        minimumNumberOfCalls: 5
+        slidingWindowSize: 10
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        slidingWindowType: COUNT_BASED
+
+
 
 
 eureka:
@@ -59,10 +99,12 @@ management:
     web:
       exposure:
         include: "*"
+  endpoint:
+    health:
+      show-details: always
 
-
-#Here you can use circuit breaker for fault tolerance
-
-
-
-
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: INFO
+    org.springframework.boot: INFO

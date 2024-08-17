@@ -8,7 +8,11 @@ import com.madeeasy.exception.CourseNotFoundException;
 import com.madeeasy.repository.CourseInstanceRepository;
 import com.madeeasy.service.CourseInstanceService;
 import com.madeeasy.vo.CourseResponseDTO;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,16 +27,18 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
 
     private final CourseInstanceRepository courseInstanceRepository;
     private final RestTemplate restTemplate;
+    private final HttpServletRequest httpServletRequest;
 
     @Override
     public CourseInstanceResponseDTO createInstance(CourseInstanceRequestDTO instance) {
 
-        String COURSE_SERVICE_URL = "http://course-service/api/courses";  // Update with the actual URL
+        String courseServiceUrl = "http://course-service/api/courses/" + instance.getCourseId();
+        String authorizationHeader = httpServletRequest.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // Check if the course exists
-        String courseUrl = COURSE_SERVICE_URL + "/" + instance.getCourseId();
         try {
-            ResponseEntity<CourseResponseDTO> courseResponse = restTemplate.getForEntity(courseUrl, CourseResponseDTO.class);
+            // Check if the course exists
+            ResponseEntity<CourseResponseDTO> courseResponse = fetchCourse(courseServiceUrl, authorizationHeader);
+
             if (courseResponse.getStatusCode().is2xxSuccessful()) {
                 // Course exists, proceed with creating the instance
                 CourseInstance courseInstance = CourseInstance.builder()
@@ -59,6 +65,20 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
             // Handle other potential exceptions
             throw new RuntimeException("Error occurred while creating the instance", e);
         }
+    }
+
+    private ResponseEntity<CourseResponseDTO> fetchCourse(String url, String authorizationHeader) {
+        HttpEntity<String> entity = createHttpEntityWithToken(authorizationHeader);
+        return restTemplate.exchange(url, HttpMethod.GET, entity, CourseResponseDTO.class);
+    }
+
+    private HttpEntity<String> createHttpEntityWithToken(String authorizationHeader) {
+        HttpHeaders headers = new HttpHeaders();
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.substring(7);  // Strip "Bearer " prefix
+            headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+        }
+        return new HttpEntity<>(headers);
     }
 
     @Override
