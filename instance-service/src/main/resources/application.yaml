@@ -1,6 +1,6 @@
 spring:
   application:
-    name: instance-service
+    name: course-instance-service
 
   output:
     ansi:
@@ -8,6 +8,24 @@ spring:
   threads:
     virtual:
       enabled: true
+
+  main:
+    allow-circular-references: true
+  datasource:
+    url: jdbc:h2:mem:instance-service
+    username: sa
+    password: sa
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+  h2:
+    console:
+      path: /h2-console
+      enabled: true
+
 
 server:
   port: 8082
