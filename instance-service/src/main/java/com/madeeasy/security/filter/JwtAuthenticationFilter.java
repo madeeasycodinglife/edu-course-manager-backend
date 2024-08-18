@@ -8,15 +8,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -27,6 +31,7 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
@@ -43,31 +48,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String userName = null;
         String token = null;
         Boolean flag = false;
+
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             token = authorizationHeader.substring(7);
             userName = jwtUtils.getUserName(token);
-            // rest-call to auth-service to check is token revoked ? or expired ?
-
-            // URL of the endpoint in your auth-service to check token status (replace with your actual endpoint)
             String authUrl = "http://auth-service/auth-service/validate-access-token/" + token;
 
             try {
-                flag = restTemplate.exchange(
-                                authUrl,
-                                HttpMethod.POST,
-                                null,  // No request body in this example
-                                Boolean.class)
-                        .getBody();
-            } catch (Exception e) {
+                ResponseEntity<Boolean> authResponse = restTemplate.exchange(
+                        authUrl,
+                        HttpMethod.POST,
+                        null,  // No request body in this example
+                        Boolean.class
+                );
+
+                if (authResponse.getStatusCode() == HttpStatus.OK) {
+                    flag = authResponse.getBody();
+                } else {
+                    handleInvalidToken(response, "Invalid token or token not found.");
+                    return; // Exit the filter chain
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Client error in JwtAuthenticationFilter: {}", e.getMessage());
+                handleInvalidToken(response, "Token validation failed.");
+                return; // Exit the filter chain
+            } catch (HttpServerErrorException e) {
+                log.error("Server error in JwtAuthenticationFilter: {}", e.getMessage());
                 handleServiceUnavailable(response);
-                return; // Exit the filter chain // this is must .
+                return; // Exit the filter chain
+            } catch (Exception e) {
+                log.error("Unexpected error in JwtAuthenticationFilter: {}", e.getMessage());
+                handleServiceUnavailable(response);
+                return; // Exit the filter chain
             }
+        } else {
+            handleInvalidToken(response, "Authorization header missing or malformed.");
+            return; // Exit the filter chain
         }
 
-
-        if (userName != null && flag && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (userName != null && Boolean.TRUE.equals(flag) && SecurityContextHolder.getContext().getAuthentication() == null) {
             if (jwtUtils.validateToken(token, userName)) {
-
                 List<SimpleGrantedAuthority> authorities = jwtUtils.getRolesFromToken(token)
                         .stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
@@ -78,11 +98,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-
             }
         }
         filterChain.doFilter(request, response);
     }
+
+    private void handleInvalidToken(HttpServletResponse response, String message) throws IOException {
+        Map<String, Object> errorResponse = Map.of(
+                "status", HttpStatus.UNAUTHORIZED,
+                "message", message
+        );
+
+        response.setContentType("application/json");
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
+    }
+
 
     private void handleServiceUnavailable(HttpServletResponse response) throws IOException {
         // Create the error response using Map.of()

@@ -113,21 +113,12 @@ public class UserServiceImpl implements UserService {
             headers.set("Authorization", "Bearer " + accessToken);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            AuthResponse authResponse = null;
-            try {
-                // Create the HttpEntity with headers and the UserRequest object
-                HttpEntity<UserRequestDTO> requestEntity = new HttpEntity<>(userRequestDTO, headers);
-                // Make the PATCH request
-                authResponse = restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, AuthResponse.class)
-                        .getBody();
-                assert authResponse != null;
-            } catch (ResourceAccessException e) {
-                log.error("Resource access error: {}", e.getMessage());
-                return UserAuthResponseDTO.builder()
-                        .status(HttpStatus.SERVICE_UNAVAILABLE)
-                        .message("AuthService is Unavailable !!")
-                        .build();
-            }
+            // Create the HttpEntity with headers and the UserRequest object
+            HttpEntity<UserRequestDTO> requestEntity = new HttpEntity<>(userRequestDTO, headers);
+            // Make the PATCH request
+            var authResponse = restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, AuthResponse.class)
+                    .getBody();
+            assert authResponse != null;
 
             return UserAuthResponseDTO.builder()
                     .id(updatedUser.getId())

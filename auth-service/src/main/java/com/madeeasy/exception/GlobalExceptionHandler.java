@@ -39,7 +39,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler({TokenException.class})
     public ResponseEntity<?> tokenException(TokenException exception) {
         System.out.println("inside tokenException handler: " + exception);
-        return ResponseEntity.badRequest().body(exception.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(exception.getMessage());
     }
 
     @Override
