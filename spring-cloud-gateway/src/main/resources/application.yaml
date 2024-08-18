@@ -69,6 +69,21 @@ spring:
     ansi:
       enabled: ALWAYS
 
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    circuitbreakers:
+      enabled: true #To show Circuit Breaker status in /health endpoint.
+  endpoint:
+    health:
+      show-details: ALWAYS  #To show all details in /health endpoint.
+
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -97,14 +112,6 @@ eureka:
     lease-renewal-interval-in-seconds: 3
     lease-expiration-duration-in-seconds: 5
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  endpoint:
-    health:
-      show-details: always
 
 logging:
   level:

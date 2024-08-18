@@ -47,6 +47,12 @@ management:
     web:
       exposure:
         include: "*"
+  health:
+    circuitbreakers:
+      enabled: true #To show Circuit Breaker status in /health endpoint.
+  endpoint:
+    health:
+      show-details: ALWAYS  #To show all details in /health endpoint.
 
 resilience4j:
   circuitbreaker:

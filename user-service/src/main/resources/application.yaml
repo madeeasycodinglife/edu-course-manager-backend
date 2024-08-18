@@ -36,9 +36,32 @@ eureka:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 3
     lease-expiration-duration-in-seconds: 5
+
+
 management:
   endpoints:
     web:
       exposure:
         include: "*"
+  health:
+    circuitbreakers:
+      enabled: true #To show Circuit Breaker status in /health endpoint.
+  endpoint:
+    health:
+      show-details: ALWAYS  #To show all details in /health endpoint.
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      myCircuitBreaker:
+        registerHealthIndicator: true
+        failureRateThreshold: 20
+        minimumNumberOfCalls: 5
+        slidingWindowSize: 10
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        slidingWindowType: COUNT_BASED
+
 

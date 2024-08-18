@@ -8,15 +8,15 @@ import com.madeeasy.entity.Role;
 import com.madeeasy.entity.User;
 import com.madeeasy.repository.UserRepository;
 import com.madeeasy.service.UserService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -25,6 +25,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -70,6 +71,7 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackGetUser")
     @Override
     public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserRequestDTO userDetails) {
         User foundUser = getByEmailId(emailId);
@@ -111,15 +113,22 @@ public class UserServiceImpl implements UserService {
             headers.set("Authorization", "Bearer " + accessToken);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
+            AuthResponse authResponse = null;
+            try {
+                // Create the HttpEntity with headers and the UserRequest object
+                HttpEntity<UserRequestDTO> requestEntity = new HttpEntity<>(userRequestDTO, headers);
+                // Make the PATCH request
+                authResponse = restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, AuthResponse.class)
+                        .getBody();
+                assert authResponse != null;
+            } catch (ResourceAccessException e) {
+                log.error("Resource access error: {}", e.getMessage());
+                return UserAuthResponseDTO.builder()
+                        .status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .message("AuthService is Unavailable !!")
+                        .build();
+            }
 
-            // Create the HttpEntity with headers and the UserRequest object
-            HttpEntity<UserRequestDTO> requestEntity = new HttpEntity<>(userRequestDTO, headers);
-
-            // Make the PATCH request
-            AuthResponse authResponse = restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, AuthResponse.class)
-                    .getBody();
-
-            assert authResponse != null;
             return UserAuthResponseDTO.builder()
                     .id(updatedUser.getId())
                     .fullName(updatedUser.getFullName())
@@ -132,6 +141,14 @@ public class UserServiceImpl implements UserService {
                     .build();
         }
         return null;
+    }
+
+    public UserAuthResponseDTO fallbackGetUser(String emailId, UserRequestDTO userDetails, Throwable t) {
+        log.error("fallback error: {}", t.getMessage());
+        return UserAuthResponseDTO.builder()
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .message("AuthService is Unavailable !!")
+                .build();
     }
 
     @Override

@@ -6,8 +6,10 @@ import com.madeeasy.entity.Course;
 import com.madeeasy.exception.CourseInstanceDeletionException;
 import com.madeeasy.exception.CourseInstanceNotFoundException;
 import com.madeeasy.exception.CourseNotFoundException;
+import com.madeeasy.exception.ServiceUnavailableException;
 import com.madeeasy.repository.CourseRepository;
 import com.madeeasy.service.CourseService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -16,8 +18,6 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -123,17 +123,18 @@ public class CourseServiceImpl implements CourseService {
      * -> Finally, delete the course.
      */
 
+
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackDeleteCourse")
     @Override
     public void deleteCourse(Long id) {
         // Check if the course exists before deleting
         if (!courseRepository.existsById(id)) {
             throw new CourseNotFoundException("Course not found with ID: " + id);
         }
+        // Proceed with the deletion of the course
+        courseRepository.deleteById(id);
 
         try {
-            // Proceed with the deletion of the course
-            courseRepository.deleteById(id);
-
             // Create the URL for deleting the related course instances
             String courseServiceUrl = "http://course-instance-service/api/instances/courseId/" + id;
 
@@ -155,15 +156,6 @@ public class CourseServiceImpl implements CourseService {
         } catch (HttpClientErrorException e) {
             logger.error("Client-side error: {}", e.getMessage());
             handleClientErrorException(e, id);
-        } catch (HttpServerErrorException e) {
-            logger.error("Server-side error: {}", e.getMessage());
-            handleServerErrorException(e, id);
-        } catch (ResourceAccessException e) {
-            logger.error("Resource access error: {}", e.getMessage());
-            handleResourceAccessException(e, id);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred: {}", e.getMessage());
-            throw new CourseInstanceDeletionException("An unexpected error occurred while processing the deletion request for course with ID " + id);
         }
     }
 
@@ -180,16 +172,6 @@ public class CourseServiceImpl implements CourseService {
         }
     }
 
-    private void handleServerErrorException(HttpServerErrorException e, Long id) {
-        HttpStatusCode statusCode = e.getStatusCode();
-        throw new CourseInstanceDeletionException("Server-side error occurred while deleting course instance with ID " + id);
-    }
-
-    private void handleResourceAccessException(ResourceAccessException e, Long id) {
-        throw new CourseInstanceDeletionException("Resource access error occurred while deleting course instance with ID " + id);
-    }
-
-
     private HttpEntity<String> createHttpEntityWithToken(String authorizationHeader) {
         HttpHeaders headers = new HttpHeaders();
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
@@ -199,4 +181,8 @@ public class CourseServiceImpl implements CourseService {
         return new HttpEntity<>(headers);
     }
 
+    public void fallbackDeleteCourse(Long id, Throwable t) {
+        logger.error("Fallback error: {}", t.getMessage());
+        throw new ServiceUnavailableException("Service unavailable while deleting course instance with ID " + id);
+    }
 }

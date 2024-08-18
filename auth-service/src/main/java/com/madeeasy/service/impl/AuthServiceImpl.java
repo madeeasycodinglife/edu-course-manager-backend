@@ -14,9 +14,10 @@ import com.madeeasy.repository.TokenRepository;
 import com.madeeasy.repository.UserRepository;
 import com.madeeasy.service.AuthService;
 import com.madeeasy.util.JwtUtils;
-import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -47,7 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final HttpServletRequest request;
 
 
-    @Retry(name = "myRetry", fallbackMethod = "retryFallbackCreateInstance")
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "singUpFallback")
     @Override
     public AuthResponse singUp(AuthRequest authRequest) {
         List<String> authRequestRoles = authRequest.getRoles();
@@ -81,7 +83,17 @@ public class AuthServiceImpl implements AuthService {
                 .role(roles)
                 .build();
 
+        // Check if user with the given email already exists
+        if (userRepository.existsByEmail(authRequest.getEmail())) {
+            log.error("User with Email :{} already exists", authRequest.getEmail());
+            return AuthResponse.builder()
+                    .message("User with Email : " + authRequest.getEmail() + " already exists")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        }
+
         userRepository.save(user);
+
 
         String accessToken = jwtUtils.generateAccessToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
@@ -130,9 +142,8 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-
-    // retryFallbackCreateInstance
-    public AuthResponse retryFallbackCreateInstance(AuthRequest authRequest, Throwable t) {
+    public AuthResponse singUpFallback(AuthRequest authRequest, Throwable t) {
+        log.error("message : {}", t.getMessage());
         return AuthResponse.builder()
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")

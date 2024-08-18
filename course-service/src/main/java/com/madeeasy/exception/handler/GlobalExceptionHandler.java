@@ -3,6 +3,7 @@ package com.madeeasy.exception.handler;
 import com.madeeasy.exception.CourseInstanceDeletionException;
 import com.madeeasy.exception.CourseInstanceNotFoundException;
 import com.madeeasy.exception.CourseNotFoundException;
+import com.madeeasy.exception.ServiceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("status", HttpStatus.INTERNAL_SERVER_ERROR.value(), "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleServiceUnavailableException(ServiceUnavailableException ex) {
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("status", HttpStatus.SERVICE_UNAVAILABLE.value(), "message", ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
