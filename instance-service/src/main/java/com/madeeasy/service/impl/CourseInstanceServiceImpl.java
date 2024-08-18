@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class CourseInstanceServiceImpl implements CourseInstanceService {
 

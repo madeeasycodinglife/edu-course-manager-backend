@@ -8,11 +8,13 @@ import com.madeeasy.repository.CourseRepository;
 import com.madeeasy.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class CourseServiceImpl implements CourseService {
 

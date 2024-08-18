@@ -40,7 +40,7 @@ spring:
           filters:
             - name: CircuitBreaker
               args:
-                name: myCircuitBreaker
+                name: fault-service
                 fallbackUri: forward:/fallback/instance-service
 
 
@@ -51,7 +51,7 @@ spring:
           filters:
             - name: CircuitBreaker
               args:
-                name: myCircuitBreaker
+                name: fault-service
                 fallbackUri: forward:/fallback/auth-service
 
 
@@ -62,7 +62,7 @@ spring:
           filters:
             - name: CircuitBreaker
               args:
-                name: myCircuitBreaker
+                name: fault-service
                 fallbackUri: forward:/fallback/user-service
 
   output:
@@ -74,17 +74,19 @@ resilience4j:
     instances:
       fault-service:
         registerHealthIndicator: true
-        failureRateThreshold: 20
+        failureRateThreshold: 50
         minimumNumberOfCalls: 5
         slidingWindowSize: 10
-        waitDurationInOpenState: 5s
+        waitDurationInOpenState: 10000
         permittedNumberOfCallsInHalfOpenState: 3
         automaticTransitionFromOpenToHalfOpenEnabled: true
         slidingWindowType: COUNT_BASED
 
 
-
-
+  timelimiter:
+    instances:
+      fault-service:
+        timeoutDuration: 13s
 eureka:
   client:
     service-url:
