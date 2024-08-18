@@ -32,7 +32,7 @@ public class CourseController {
 
         if (courses.isEmpty()) {
             // Return 204 No Content if there are no courses
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.status(HttpStatus.OK).body(List.of());
         }
         // Return 200 OK with the list of courses
         return ResponseEntity.ok(courses);

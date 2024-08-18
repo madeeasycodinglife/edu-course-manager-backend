@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -47,7 +46,7 @@ public class CourseServiceImpl implements CourseService {
         if (courses.isEmpty()) {
             // Handle the case where there are no courses
             // You can return an empty list or handle it differently
-            return Collections.emptyList(); // or return a custom response indicating no courses found
+            return List.of(); // or return a custom response indicating no courses found
         }
 
         // Map the courses to CourseResponseDTO if the list is not empty
