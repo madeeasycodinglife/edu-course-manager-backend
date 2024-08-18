@@ -28,6 +28,21 @@ public class InstanceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdInstance);
     }
 
+    @GetMapping
+    public ResponseEntity<?> getAllInstances() {
+        List<CourseInstanceResponseDTO> instances = instanceService.getAllInstances();
+        if (instances.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.OK).body(List.of());
+        }
+        return ResponseEntity.ok(instances);
+    }
+
+    @DeleteMapping(path = "/courseId/{courseId}")
+    public ResponseEntity<?> deleteInstancesByYear(@PathVariable Long courseId) {
+        instanceService.deleteInstancesByCourseId(courseId);
+        return ResponseEntity.status(HttpStatus.OK).body("Instances deleted successfully");
+    }
+
     @GetMapping("/{year}/{semester}")
     public ResponseEntity<?> getInstancesByYearAndSemester(@PathVariable int year,
                                                            @PathVariable int semester) {
@@ -58,6 +73,6 @@ public class InstanceController {
         responseBody.put("message", message);
 
         // Return the response entity with a custom message 204 No Content
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(responseBody);
+        return ResponseEntity.status(HttpStatus.OK).body(responseBody);
     }
 }

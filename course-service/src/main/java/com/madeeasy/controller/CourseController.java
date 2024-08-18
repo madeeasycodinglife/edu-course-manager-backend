@@ -61,7 +61,6 @@ public class CourseController {
         Map<String, String> responseBody = new HashMap<>();
         responseBody.put("message", message);
 
-        // Return the response entity with a custom message and HTTP status 204 No Content
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(responseBody);
+        return ResponseEntity.status(HttpStatus.OK).body(responseBody);
     }
 }

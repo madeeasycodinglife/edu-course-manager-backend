@@ -25,5 +25,11 @@ public interface CourseInstanceRepository extends JpaRepository<CourseInstance, 
             @Param("semester") int semester,
             @Param("courseId") Long courseId);
 
+    List<CourseInstance> findByCourseId(Long courseId);
+
+    @Modifying
+    @Query("DELETE FROM CourseInstance ci WHERE ci.courseId = :courseId")
+    void deleteByCourseId(@Param("courseId") Long courseId);
+
     boolean existsByYearAndSemesterAndCourseId(int year, int semester, Long courseId);
 }

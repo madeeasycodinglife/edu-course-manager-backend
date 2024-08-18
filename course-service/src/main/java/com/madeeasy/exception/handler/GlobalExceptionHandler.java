@@ -1,5 +1,7 @@
 package com.madeeasy.exception.handler;
 
+import com.madeeasy.exception.CourseInstanceDeletionException;
+import com.madeeasy.exception.CourseInstanceNotFoundException;
 import com.madeeasy.exception.CourseNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +34,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
-
     @ExceptionHandler(CourseNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleCourseNotFoundException(CourseNotFoundException ex) {
 
@@ -46,16 +47,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(CourseInstanceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseInstanceNotFoundException(CourseInstanceNotFoundException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("status", HttpStatus.NOT_FOUND.value(), "message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CourseInstanceDeletionException.class)
+    public ResponseEntity<Map<String, Object>> handleCourseInstanceDeletionException(CourseInstanceDeletionException ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("status", HttpStatus.INTERNAL_SERVER_ERROR.value(), "message", ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-
-        logger.error("An error occurred: ", ex);
-
-        Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "message", "An error occurred. Please try again later."
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("status", HttpStatus.INTERNAL_SERVER_ERROR.value(), "message", "An unexpected error occurred."));
     }
 }

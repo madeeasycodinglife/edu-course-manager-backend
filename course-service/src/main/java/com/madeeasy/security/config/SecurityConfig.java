@@ -36,10 +36,11 @@ public class SecurityConfig {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(this.corsConfigurationSource()))
                 .authorizeHttpRequests(
-                        authorizeRequests -> authorizeRequests.requestMatchers(HttpMethod.POST, "/api/courses").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.GET, "/api/courses").hasAnyRole("ADMIN", "USER")
-                                .requestMatchers(HttpMethod.GET, "/api/courses/*").hasAnyRole("ADMIN", "USER")
-                                .requestMatchers(HttpMethod.GET, "/api/courses/code/*").hasAnyRole("ADMIN", "USER")
+                        authorizeRequests -> authorizeRequests
+                                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/courses/*").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/courses/code/*").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/courses").hasRole("ADMIN")
                                 .requestMatchers(HttpMethod.DELETE, "/api/courses/*").hasRole("ADMIN")
                                 .anyRequest().authenticated()
                 )

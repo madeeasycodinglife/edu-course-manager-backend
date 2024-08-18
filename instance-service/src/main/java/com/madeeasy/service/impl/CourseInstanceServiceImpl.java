@@ -135,6 +135,23 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
                 .build();
     }
 
+    /**
+     * Delete Course Instance by Year, Semester, and Course ID
+     * <p>
+     * When you delete a course instance :-
+     * ------------------------------------
+     * <p>
+     * Should you delete the course?
+     * No, deleting a course instance should not delete the course itself.
+     * This is because the course may still have other instances, or it might be planned for future offerings.
+     * Deleting a course instance only removes the specific instance, not the abstract course itself.
+     * <p>
+     * Logic:
+     * <p>
+     * -> First, retrieve the course instance by the year, semester, and course ID.
+     * -> If the instance exists, delete the instance.
+     * -> The course remains in the system, and only that specific instance is removed.
+     */
     @Transactional
     @Override
     public void deleteInstance(int year, int semester, Long courseId) {
@@ -143,5 +160,34 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
         }
         this.courseInstanceRepository
                 .deleteByYearAndSemesterAndCourseId(year, semester, courseId);
+    }
+
+    @Override
+    public List<CourseInstanceResponseDTO> getAllInstances() {
+
+        List<CourseInstance> courseInstance = this.courseInstanceRepository.findAll();
+
+        if (courseInstance.isEmpty()) {
+            return List.of();
+        }
+        return courseInstance.stream()
+                .map(instance -> CourseInstanceResponseDTO.builder()
+                        .id(instance.getId())
+                        .year(instance.getYear())
+                        .semester(instance.getSemester())
+                        .courseId(instance.getCourseId())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public void deleteInstancesByCourseId(Long courseId) {
+
+        List<CourseInstance> courseInstance = this.courseInstanceRepository.findByCourseId(courseId);
+        if (courseInstance.isEmpty()) {
+            throw new CourseInstanceNotFoundException("Course Instance Not found With CourseId : " + courseId);
+        }
+
+        this.courseInstanceRepository.deleteByCourseId(courseId);
     }
 }

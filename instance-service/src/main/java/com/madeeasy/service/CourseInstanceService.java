@@ -14,4 +14,8 @@ public interface CourseInstanceService {
     CourseInstanceResponseDTO getInstanceByYearSemesterAndCourseId(int year, int semester, Long courseId);
 
     void deleteInstance(int year, int semester, Long courseId);
+
+    List<CourseInstanceResponseDTO> getAllInstances();
+
+    void deleteInstancesByCourseId(Long courseId);
 }
