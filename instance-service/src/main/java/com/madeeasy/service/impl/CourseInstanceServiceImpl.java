@@ -8,12 +8,12 @@ import com.madeeasy.exception.CourseNotFoundException;
 import com.madeeasy.repository.CourseInstanceRepository;
 import com.madeeasy.service.CourseInstanceService;
 import com.madeeasy.vo.CourseResponseDTO;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -29,7 +29,10 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
     private final CourseInstanceRepository courseInstanceRepository;
     private final RestTemplate restTemplate;
     private final HttpServletRequest httpServletRequest;
+    Logger logger = LoggerFactory.getLogger(CourseInstanceServiceImpl.class);
 
+
+    @Retry(name = "myRetry", fallbackMethod = "retryFallbackCreateInstance")
     @Override
     public CourseInstanceResponseDTO createInstance(CourseInstanceRequestDTO instance) {
 
@@ -80,6 +83,23 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
             headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         }
         return new HttpEntity<>(headers);
+    }
+
+
+    // Fallback method for createInstance
+    public CourseInstanceResponseDTO retryFallbackCreateInstance(CourseInstanceRequestDTO instance, Throwable throwable) {
+        // Log the error for debugging purposes
+        logger.error("Fallback method triggered for createInstance. Error: {}", throwable.getMessage());
+
+        // Return a default or fallback response
+        return CourseInstanceResponseDTO.builder()
+                .id(null)  // Indicate no valid ID could be created
+                .year(null) // you can write instance.getYear()
+                .semester(null) // you can write instance.getSemester()
+                .courseId(null) // you can write instance.getCourseId()
+                .message("Sorry !! Course instance creation failed as Course Service is unavailable. Please try again later.")
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .build();
     }
 
     @Override

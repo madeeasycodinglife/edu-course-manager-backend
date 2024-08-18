@@ -14,12 +14,10 @@ import com.madeeasy.repository.TokenRepository;
 import com.madeeasy.repository.UserRepository;
 import com.madeeasy.service.AuthService;
 import com.madeeasy.util.JwtUtils;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -48,6 +46,8 @@ public class AuthServiceImpl implements AuthService {
     private final RestTemplate restTemplate;
     private final HttpServletRequest request;
 
+
+    @Retry(name = "myRetry", fallbackMethod = "retryFallbackCreateInstance")
     @Override
     public AuthResponse singUp(AuthRequest authRequest) {
         List<String> authRequestRoles = authRequest.getRoles();
@@ -127,6 +127,15 @@ public class AuthServiceImpl implements AuthService {
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .build();
+    }
+
+
+    // retryFallbackCreateInstance
+    public AuthResponse retryFallbackCreateInstance(AuthRequest authRequest, Throwable t) {
+        return AuthResponse.builder()
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")
                 .build();
     }
 

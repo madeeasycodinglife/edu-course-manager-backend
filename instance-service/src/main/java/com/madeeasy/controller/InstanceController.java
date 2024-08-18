@@ -22,6 +22,9 @@ public class InstanceController {
     @PostMapping
     public ResponseEntity<?> createInstance(@RequestBody CourseInstanceRequestDTO instance) {
         CourseInstanceResponseDTO createdInstance = instanceService.createInstance(instance);
+        if (createdInstance.getId() == null) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(createdInstance);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(createdInstance);
     }
 

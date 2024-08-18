@@ -86,11 +86,12 @@ resilience4j:
   timelimiter:
     instances:
       fault-service:
-        timeoutDuration: 13s
+        timeoutDuration: 8s
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 3
   instance:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 3

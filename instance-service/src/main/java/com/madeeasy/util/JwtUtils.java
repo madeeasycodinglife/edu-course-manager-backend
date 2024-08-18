@@ -26,7 +26,6 @@ public class JwtUtils {
 
     public Claims getAllClaims(String token) {
 
-
         return Jwts.parser()
                 .verifyWith(getSignKey())
                 .build()
