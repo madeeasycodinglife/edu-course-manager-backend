@@ -3,6 +3,7 @@ package com.madeeasy.security.config;
 
 import com.madeeasy.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -22,6 +23,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -30,20 +32,37 @@ public class SecurityConfig {
 
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityConfigProperties securityConfigProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(this.corsConfigurationSource()))
-                .authorizeHttpRequests(
-                        authorizeRequests -> authorizeRequests
-                                .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/courses/*").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/courses/code/*").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/courses").hasRole("ADMIN")
-                                .requestMatchers(HttpMethod.DELETE, "/api/courses/*").hasRole("ADMIN")
-                                .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(authorizeRequests -> {
+                    // Process each path configuration
+                    securityConfigProperties.getPaths().forEach(config -> {
+                        HttpMethod method = HttpMethod.valueOf(config.getMethod().toUpperCase());
+
+                        if (config.getRoles().isEmpty()) {
+                            // Permit all for paths with empty roles
+                            log.info("Permitting all for path: {} with method: {}", config.getPath(), method);
+                            authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
+                        } else {
+                            // Configure role-based access
+                            String[] roles = config.getRoles().stream()
+                                    .map(role -> role.replace("ROLE_", ""))
+                                    .toArray(String[]::new);
+
+                            // If there are multiple roles, use hasAnyRole
+                            log.info("Permitting {} for path: {} with method: {}", roles, config.getPath(), method);
+                            authorizeRequests.requestMatchers(method, config.getPath())
+                                    .hasAnyRole(roles);
+
+                        }
+                    });
+                    // Fallback: permit all other requests
+                    authorizeRequests.anyRequest().permitAll();
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

@@ -3,9 +3,12 @@ package com.madeeasy.controller;
 import com.madeeasy.dto.request.CourseRequestDTO;
 import com.madeeasy.dto.response.CourseResponseDTO;
 import com.madeeasy.service.CourseService;
+import com.madeeasy.util.ValidationUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -15,13 +18,14 @@ import java.util.Map;
 @RestController
 @RequestMapping(path = "/api/courses")
 @RequiredArgsConstructor
+@Validated
 public class CourseController {
 
     private final CourseService courseService;
 
 
     @PostMapping
-    public ResponseEntity<?> createCourse(@RequestBody CourseRequestDTO course) {
+    public ResponseEntity<?> createCourse(@Valid @RequestBody CourseRequestDTO course) {
         CourseResponseDTO createdCourse = courseService.createCourse(course);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdCourse);
     }
@@ -40,18 +44,33 @@ public class CourseController {
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getCourseById(@PathVariable Long id) {
+        Map<String, String> errors = ValidationUtils.validatePositiveInteger(id.intValue(), "id");
+
+        if (!errors.isEmpty()) {
+            return ResponseEntity.badRequest().body(errors);
+        }
         CourseResponseDTO course = courseService.getCourseById(id);
         return ResponseEntity.ok(course);
     }
 
     @GetMapping("/code/{courseCode}")
     public ResponseEntity<?> getCourseByCourseCode(@PathVariable String courseCode) {
+        Map<String, String> errors = ValidationUtils.validateCourseCode(courseCode);
+
+        if (!errors.isEmpty()) {
+            return ResponseEntity.badRequest().body(errors);
+        }
         CourseResponseDTO course = courseService.getCourseByCourseCode(courseCode);
         return ResponseEntity.ok(course);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCourse(@PathVariable Long id) {
+        Map<String, String> errors = ValidationUtils.validatePositiveInteger(id.intValue(), "id");
+
+        if (!errors.isEmpty()) {
+            return ResponseEntity.badRequest().body(errors);
+        }
         courseService.deleteCourse(id);
 
         // Create a response message

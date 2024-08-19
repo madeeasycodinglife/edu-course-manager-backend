@@ -30,18 +30,40 @@ public class SecurityConfig {
 
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityConfigProperties securityConfigProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(this.corsConfigurationSource()))
-                .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                        .requestMatchers(HttpMethod.GET, "/api/instances").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/instances/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/instances").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/instances/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(authorizeRequests -> {
+                    // Process each path configuration
+                    securityConfigProperties.getPaths().forEach(config -> {
+                        HttpMethod method = HttpMethod.valueOf(config.getMethod().toUpperCase());
+
+                        if (config.getRoles().isEmpty()) {
+                            // Permit all for paths with empty roles
+                            authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
+                        } else {
+                            // Configure role-based access
+                            String[] roles = config.getRoles().stream()
+                                    .map(role -> role.replace("ROLE_", ""))
+                                    .toArray(String[]::new);
+
+                            if (roles.length == 1) {
+                                // If there's only one role, use hasRole
+                                authorizeRequests.requestMatchers(method, config.getPath())
+                                        .hasRole(roles[0]);
+                            } else {
+                                // If there are multiple roles, use hasAnyRole
+                                authorizeRequests.requestMatchers(method, config.getPath())
+                                        .hasAnyRole(roles);
+                            }
+                        }
+                    });
+                    // Fallback: permit all other requests
+                    authorizeRequests.anyRequest().permitAll();
+                })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

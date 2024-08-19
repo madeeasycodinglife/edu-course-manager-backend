@@ -101,7 +101,7 @@ resilience4j:
   timelimiter:
     instances:
       fault-service:
-        timeoutDuration: 8s
+        timeoutDuration: 10s
 eureka:
   client:
     service-url:

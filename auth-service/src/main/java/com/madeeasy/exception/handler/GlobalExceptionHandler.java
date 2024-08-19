@@ -1,14 +1,13 @@
 package com.madeeasy.exception.handler;
 
-import com.madeeasy.exception.CourseInstanceDeletionException;
-import com.madeeasy.exception.CourseInstanceNotFoundException;
-import com.madeeasy.exception.CourseNotFoundException;
-import com.madeeasy.exception.ServiceUnavailableException;
+
+import com.madeeasy.exception.ClientException;
+import com.madeeasy.exception.TokenException;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
-import org.springframework.validation.FieldError;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,6 +17,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -28,28 +28,31 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
                                                                   HttpStatusCode status,
                                                                   WebRequest request) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
 
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+        List<String> errorMessages = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.toList());
+
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("timestamp", LocalDateTime.now());
+        errorResponse.put("status", HttpStatus.BAD_REQUEST);
+        errorResponse.put("error", "Validation Failed");
+        errorResponse.put("errors", errorMessages);
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(
             MethodArgumentTypeMismatchException ex) {
 
-        logger.warn("Invalid value '{}' for parameter '{}'. Expected type is '{}'.",
+        log.warn("Invalid value '{}' for parameter '{}'. Expected type is '{}'.",
                 ex.getValue(), ex.getName(), ex.getRequiredType().getSimpleName());
 
         Map<String, Object> errorResponse = Map.of(
@@ -99,44 +102,68 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
 
-    @ExceptionHandler(CourseNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleCourseNotFoundException(CourseNotFoundException ex) {
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<String> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String errorMessage = extractErrorMessage(ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorMessage);
+    }
 
-        logger.warn("Course not found with id: {}", ex.getMessage());
+    // Helper method to extract error message from DataIntegrityViolationException
+    private String extractErrorMessage(DataIntegrityViolationException ex) {
+        Throwable rootCause = ex.getRootCause();
+        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+            SQLIntegrityConstraintViolationException sqlEx = (SQLIntegrityConstraintViolationException) rootCause;
+            return sqlEx.getMessage();
+        } else {
+            return "A unique constraint violation occurred.";
+        }
+    }
 
-        Map<String, Object> errorResponse = Map.of(
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleUsernameNotFoundException(UsernameNotFoundException exception) {
+        Map<String, Object> responseBody = Map.of(
                 "status", HttpStatus.NOT_FOUND,
-                "message", ex.getMessage()
+                "message", exception.getMessage()
         );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseBody);
     }
 
-    @ExceptionHandler(CourseInstanceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleCourseInstanceNotFoundException(CourseInstanceNotFoundException ex) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(Map.of("status", HttpStatus.NOT_FOUND, "message", ex.getMessage()));
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        Map<String, Object> responseBody = Map.of(
+                "status", HttpStatus.UNAUTHORIZED,
+                "message", "Invalid username or password"
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseBody);
     }
 
-    @ExceptionHandler(CourseInstanceDeletionException.class)
-    public ResponseEntity<Map<String, Object>> handleCourseInstanceDeletionException(CourseInstanceDeletionException ex) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("status", HttpStatus.INTERNAL_SERVER_ERROR, "message", ex.getMessage()));
+    @ExceptionHandler(TokenException.class)
+    public ResponseEntity<Map<String, Object>> handleTokenException(TokenException exception) {
+        System.out.println("Inside tokenException handler: " + exception);
+        Map<String, Object> responseBody = Map.of(
+                "status", HttpStatus.NOT_FOUND,
+                "message", exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseBody);
     }
 
-    @ExceptionHandler(ServiceUnavailableException.class)
-    public ResponseEntity<Map<String, Object>> handleServiceUnavailableException(ServiceUnavailableException ex) {
-        return ResponseEntity
-                .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("status", HttpStatus.SERVICE_UNAVAILABLE, "message", ex.getMessage()));
+    @ExceptionHandler(ClientException.class)
+    public ResponseEntity<Map<String, Object>> handleClientException(ClientException exception) {
+        System.out.println("Inside clientException handler: " + exception);
+        Map<String, Object> responseBody = Map.of(
+                "status", HttpStatus.BAD_REQUEST,
+                "message", exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseBody);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("status", HttpStatus.INTERNAL_SERVER_ERROR, "message", "An unexpected error occurred."));
+    public ResponseEntity<Map<String, Object>> handleException(Exception exception) {
+        System.out.println("Inside exception handler: " + exception);
+        Map<String, Object> responseBody = Map.of(
+                "status", HttpStatus.INTERNAL_SERVER_ERROR,
+                "message", exception.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseBody);
     }
 }

@@ -1,10 +1,15 @@
 package com.madeeasy.util;
 
+
+import com.madeeasy.exception.TokenValidationException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -14,11 +19,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-
 @Component
 public class JwtUtils {
+
     private static final String SECRET_KEY = "1adf0a4782f6e5674a79747fe58ea851b7581658d3715b12f4e0b12e999f307e";
-    Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+    private final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
 
     public String generateAccessToken(String email, List<String> roles) {
@@ -28,7 +33,7 @@ public class JwtUtils {
                 .claim("roles", roles)
                 .issuer("madeeasycodinglife")
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1)))
+                .expiration(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(3)))
                 .signWith(getSignKey())
                 .compact();
     }
@@ -40,11 +45,10 @@ public class JwtUtils {
                 .claim("roles", roles)
                 .issuer("madeeasycodinglife")
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1)))
+                .expiration(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)))
                 .signWith(getSignKey())
                 .compact();
     }
-
 
     public Claims getAllClaims(String token) {
 
@@ -57,25 +61,29 @@ public class JwtUtils {
         } catch (MalformedJwtException e) {
             // Invalid JWT token
             // Log or handle the error as needed
-            System.out.println(e.getMessage());
+            logger.warn("Invalid JWT token: {}", e.getMessage());
+            throw new TokenValidationException("Invalid JWT token", HttpStatus.UNAUTHORIZED);
         } catch (ExpiredJwtException e) {
             // JWT token is expired
             // Log or handle the error as needed
-            System.out.println(e.getMessage());
+            logger.warn("JWT token is expired: {}", e.getMessage());
+            throw new TokenValidationException("JWT token is expired", HttpStatus.UNAUTHORIZED);
         } catch (UnsupportedJwtException e) {
             // JWT token is unsupported
             // Log or handle the error as needed
-            System.out.println(e.getMessage());
+            logger.warn("JWT token is unsupported: {}", e.getMessage());
+            throw new TokenValidationException("JWT token is unsupported", HttpStatus.UNAUTHORIZED);
         } catch (IllegalArgumentException e) {
             // JWT claims string is empty
             // Log or handle the error as needed
-            System.out.println(e.getMessage());
+            logger.warn("JWT claims string is empty: {}", e.getMessage());
+            throw new TokenValidationException("JWT claims string is empty", HttpStatus.UNAUTHORIZED);
         } catch (SignatureException e) {
             // JWT signature validation failed
             // Log or handle the error as needed
-            System.out.println(e.getMessage());
+            logger.warn("JWT signature validation failed: {}", e.getMessage());
+            throw new TokenValidationException("JWT signature validation failed", HttpStatus.UNAUTHORIZED);
         }
-        return null;
     }
 
     private SecretKey getSignKey() {
@@ -84,13 +92,11 @@ public class JwtUtils {
     }
 
     public Date getExpirationDate(String token) {
-        Claims claims = getAllClaims(token);
-        return (claims != null) ? claims.getExpiration() : null;
+        return getAllClaims(token).getExpiration();
     }
 
     public String getUserName(String token) {
-        Claims claims = getAllClaims(token);
-        return (claims != null) ? claims.getSubject() : null;
+        return getAllClaims(token).getSubject();
     }
 
 
@@ -100,59 +106,26 @@ public class JwtUtils {
     }
 
     public boolean validateToken(String token, String userName) {
-        try {
-            Jwts.parser()
-                    .verifyWith(getSignKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            boolean isValid = userName.equals(getUserName(token)) && !isTokenExpired(token);
-            return isValid;
-        } catch (MalformedJwtException e) {
-            // Invalid JWT token
-            // Log or handle the error as needed
-            System.out.println(e.getMessage());
-        } catch (ExpiredJwtException e) {
-            // JWT token is expired
-            // Log or handle the error as needed
-            System.out.println(e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            // JWT token is unsupported
-            // Log or handle the error as needed
-            System.out.println(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            // JWT claims string is empty
-            // Log or handle the error as needed
-            System.out.println(e.getMessage());
-        } catch (SignatureException e) {
-            // JWT signature validation failed
-            // Log or handle the error as needed
-            System.out.println(e.getMessage());
-        }
-        return false;
+        getAllClaims(token);
+        return userName.equals(getUserName(token)) && !isTokenExpired(token);
     }
 
 
     public List<String> getRolesFromToken(String token) {
         Claims claims = getAllClaims(token);
 
-        if (claims != null) {
-            Object rolesObject = claims.get("roles");
+        Object rolesObject = claims.get("roles");
 
-            if (rolesObject instanceof List<?>) {
-                List<String> roles = new ArrayList<>();
+        List<String> roles = new ArrayList<>();
 
-                for (Object role : (List<?>) rolesObject) {
-                    if (role instanceof String) {
-                        roles.add((String) role);
-                    }
-                    // Add additional checks or handling if needed
+        if (rolesObject instanceof List<?>) {
+            for (Object role : (List<?>) rolesObject) {
+                if (role instanceof String) {
+                    roles.add((String) role);
                 }
-
-                return roles;
+                // Add additional checks or handling if needed
             }
         }
-
-        return null;
+        return roles;
     }
 }

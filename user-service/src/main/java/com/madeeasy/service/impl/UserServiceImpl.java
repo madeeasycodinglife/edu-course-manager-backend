@@ -1,22 +1,22 @@
 package com.madeeasy.service.impl;
 
+import com.madeeasy.dto.request.UserPatchRequestDTO;
 import com.madeeasy.dto.request.UserRequestDTO;
 import com.madeeasy.dto.response.AuthResponse;
 import com.madeeasy.dto.response.UserAuthResponseDTO;
 import com.madeeasy.dto.response.UserResponseDTO;
 import com.madeeasy.entity.Role;
 import com.madeeasy.entity.User;
+import com.madeeasy.exception.UserNotFoundException;
 import com.madeeasy.repository.UserRepository;
 import com.madeeasy.service.UserService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -29,10 +29,8 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    @Autowired
-    private HttpServletRequest httpServletRequest;
-    @Autowired
-    private RestTemplate restTemplate;
+    private final HttpServletRequest httpServletRequest;
+    private final RestTemplate restTemplate;
 
     @Override
     public List<UserResponseDTO> getAllUsers() {
@@ -52,7 +50,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserAuthResponseDTO createUser(UserRequestDTO user) {
         User userEntity = User.builder()
-                .id(user.getId() == null ? UUID.randomUUID().toString() : user.getId())
+                .id(UUID.randomUUID().toString())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .password(user.getPassword())
@@ -73,7 +71,7 @@ public class UserServiceImpl implements UserService {
 
     @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackGetUser")
     @Override
-    public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserRequestDTO userDetails) {
+    public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails) {
         User foundUser = getByEmailId(emailId);
         UserRequestDTO userRequestDTO = new UserRequestDTO();
         if (foundUser != null) {
@@ -144,6 +142,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUser(String emailId) {
+        if (!this.userRepository.existsByEmail(emailId)) {
+            throw new UserNotFoundException("User not found with emailId: " + emailId);
+        }
         this.userRepository.deleteByEmail(emailId);
     }
 

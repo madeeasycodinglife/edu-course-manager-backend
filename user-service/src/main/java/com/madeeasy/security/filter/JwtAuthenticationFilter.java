@@ -1,7 +1,8 @@
 package com.madeeasy.security.filter;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.madeeasy.exception.TokenValidationException;
+import com.madeeasy.security.config.SecurityConfigProperties;
 import com.madeeasy.util.JwtUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,7 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.PathMatcher;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -34,24 +37,39 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtUtils jwtUtils;
-    @Autowired
-    private RestTemplate restTemplate;
+    private final JwtUtils jwtUtils;
+    private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final SecurityConfigProperties securityConfigProperties;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String authorizationHeader = request.getHeader("Authorization");
-        String userName = null;
+        String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         String token = null;
-        Boolean flag = false;
+        String userName = null;
+        Boolean tokenValid = false;
+        String requestUri = request.getRequestURI();
 
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            token = authorizationHeader.substring(7);
-            userName = jwtUtils.getUserName(token);
+        // Check if the request URI requires authorization
+        if (requiresAuthorization(request)) {
+            // Check if Authorization header is present and valid
+            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+                handleInvalidToken(response, "Authorization header missing or malformed.");
+                return; // Exit the filter chain
+            }
+
+            token = authorizationHeader.substring(7); // Extract token from header
+
+            try {
+                userName = jwtUtils.getUserName(token);
+            } catch (TokenValidationException e) {
+                handleInvalidToken(response, e.getMessage());
+                return; // Exit the filter chain
+            }
+
+            // Validate token using external service
             String authUrl = "http://auth-service/auth-service/validate-access-token/" + token;
 
             try {
@@ -63,17 +81,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 );
 
                 if (authResponse.getStatusCode() == HttpStatus.OK) {
-                    flag = authResponse.getBody();
+                    tokenValid = authResponse.getBody();
                 } else {
                     handleInvalidToken(response, "Invalid token or token not found.");
                     return; // Exit the filter chain
                 }
-            } catch (HttpClientErrorException e) {
-                log.error("Client error in JwtAuthenticationFilter: {}", e.getMessage());
-                handleInvalidToken(response, "Token validation failed.");
-                return; // Exit the filter chain
-            } catch (HttpServerErrorException e) {
-                log.error("Server error in JwtAuthenticationFilter: {}", e.getMessage());
+            } catch (HttpClientErrorException | HttpServerErrorException e) {
+                log.error("Error in JwtAuthenticationFilter: {}", e.getMessage());
                 handleServiceUnavailable(response);
                 return; // Exit the filter chain
             } catch (Exception e) {
@@ -81,27 +95,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 handleServiceUnavailable(response);
                 return; // Exit the filter chain
             }
-        } else {
-            handleInvalidToken(response, "Authorization header missing or malformed.");
-            return; // Exit the filter chain
-        }
 
-        if (userName != null && Boolean.TRUE.equals(flag) && SecurityContextHolder.getContext().getAuthentication() == null) {
-            if (jwtUtils.validateToken(token, userName)) {
-                List<SimpleGrantedAuthority> authorities = jwtUtils.getRolesFromToken(token)
-                        .stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
-                        .collect(Collectors.toList());
+            // If the token is valid, set authentication in context
+            if (Boolean.TRUE.equals(tokenValid) && userName != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (jwtUtils.validateToken(token, userName)) {
+                    List<SimpleGrantedAuthority> authorities = jwtUtils.getRolesFromToken(token)
+                            .stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .collect(Collectors.toList());
 
-                UsernamePasswordAuthenticationToken authenticationToken =
-                        new UsernamePasswordAuthenticationToken(userName, null, authorities);
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(userName, null, authorities);
 
-                authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                }
             }
         }
+
+        // Continue with the filter chain
         filterChain.doFilter(request, response);
     }
+
+    private boolean requiresAuthorization(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+
+
+        // Initialize the path matcher to handle wildcard patterns
+        PathMatcher pathMatcher = new AntPathMatcher();
+
+        // Log the URI and method being checked
+        log.info("Checking URI: {} Method: {} against configured paths.", uri, method);
+
+        // Check if any configured path matches the URI and HTTP method
+        boolean requiresAuth = securityConfigProperties.getPaths().stream()
+                .anyMatch(config ->
+                        pathMatcher.match(config.getPath(), uri) &&
+                                method.equalsIgnoreCase(config.getMethod()) &&
+                                !config.getRoles().isEmpty()
+                );
+
+        // Log whether authorization is required
+        log.info("URI: {} Method: {} requires authorization: {}", uri, method, requiresAuth);
+
+        return requiresAuth;
+    }
+
 
     private void handleInvalidToken(HttpServletResponse response, String message) throws IOException {
         Map<String, Object> errorResponse = Map.of(
@@ -114,21 +154,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 
-
     private void handleServiceUnavailable(HttpServletResponse response) throws IOException {
-        // Create the error response using Map.of()
         Map<String, Object> errorResponse = Map.of(
                 "status", HttpStatus.SERVICE_UNAVAILABLE,
-                "message", "The Auth-Service is not available !!."
+                "message", "The Auth-Service is not available."
         );
 
-        // Set the response type and status
         response.setContentType("application/json");
         response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-
-        // Write the response as JSON
         response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
-
     }
 }
-

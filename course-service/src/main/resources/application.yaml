@@ -23,6 +23,32 @@ spring:
     console:
       path: /h2-console
       enabled: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+security:
+  authorization:
+    paths:
+      - path: /api/courses
+        method: GET
+        roles: []
+      - path: /api/courses/**
+        method: GET
+        roles: []
+      - path: /api/courses/code/**
+        method: GET
+        roles: []
+      - path: /api/courses
+        method: POST
+        roles:
+          - ROLE_ADMIN
+      - path: /api/courses/**
+        method: DELETE
+        roles:
+          - ROLE_ADMIN
 
 server:
   port: 8081

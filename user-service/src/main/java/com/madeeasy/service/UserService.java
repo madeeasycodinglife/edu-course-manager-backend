@@ -1,5 +1,6 @@
 package com.madeeasy.service;
 
+import com.madeeasy.dto.request.UserPatchRequestDTO;
 import com.madeeasy.dto.request.UserRequestDTO;
 import com.madeeasy.dto.response.UserAuthResponseDTO;
 import com.madeeasy.dto.response.UserResponseDTO;
@@ -11,7 +12,7 @@ public interface UserService {
 
     UserAuthResponseDTO createUser(UserRequestDTO user);
 
-    UserAuthResponseDTO partiallyUpdateUser(String emailId, UserRequestDTO userDetails);
+    UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails);
 
     void deleteUser(String emailId);
 

@@ -13,6 +13,7 @@ spring:
   main:
     allow-circular-references: true
 
+
   datasource:
     url: jdbc:h2:mem:user-service
     username: sa
@@ -26,6 +27,42 @@ spring:
     console:
       path: /h2-console
       enabled: true
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+security:
+  authorization:
+    paths:
+      - path: /user-service/create
+        method: POST
+        roles: []
+      - path: /user-service/full-update/**
+        method: PUT
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
+      - path: /user-service/partial-update/**
+        method: PATCH
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
+      - path: /user-service/delete/**
+        method: DELETE
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
+      - path: /user-service/{emailId}
+        method: GET
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
+
+
+
+
 
 eureka:
   client:

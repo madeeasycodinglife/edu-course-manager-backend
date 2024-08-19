@@ -9,6 +9,7 @@ import com.madeeasy.entity.Role;
 import com.madeeasy.entity.Token;
 import com.madeeasy.entity.TokenType;
 import com.madeeasy.entity.User;
+import com.madeeasy.exception.ClientException;
 import com.madeeasy.exception.TokenException;
 import com.madeeasy.repository.TokenRepository;
 import com.madeeasy.repository.UserRepository;
@@ -27,6 +28,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -34,6 +36,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Slf4j
 @Service
@@ -128,18 +132,30 @@ public class AuthServiceImpl implements AuthService {
 
         HttpEntity<UserRequest> requestEntity = new HttpEntity<>(userRequest, headers);
 
-        restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                requestEntity,
-                UserRequest.class
-        );
+        try {
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    UserRequest.class
+            );
+        } catch (HttpClientErrorException e) {
+            handleClientErrorException(e);
+        }
 
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
+    }
+
+    private void handleClientErrorException(HttpClientErrorException e) {
+        HttpStatusCode statusCode = e.getStatusCode();
+        if (statusCode.equals(BAD_REQUEST)) {
+            throw new ClientException("Bad request : " + e.getResponseBodyAsString());
+        }
+        throw new ClientException("Client-side error occurred : " + e.getResponseBodyAsString());
     }
 
     public AuthResponse singUpFallback(AuthRequest authRequest, Throwable t) {

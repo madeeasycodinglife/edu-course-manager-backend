@@ -1,7 +1,8 @@
 package com.madeeasy.exception.handler;
 
-import com.madeeasy.exception.CourseInstanceNotFoundException;
-import com.madeeasy.exception.CourseNotFoundException;
+import com.madeeasy.exception.UserNotFoundException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.validation.FieldError;
@@ -21,8 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@RestControllerAdvice
 @Slf4j
+@RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 
@@ -41,6 +42,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, String>> handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            String fieldName = getSimpleFieldName(violation.getPropertyPath().toString());
+            String errorMessage = violation.getMessage();
+            errors.merge(fieldName, errorMessage, (existing, newMessage) -> existing + ", " + newMessage);
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    private String getSimpleFieldName(String propertyPath) {
+        // Split propertyPath to get only the last segment (field name)
+        String[] parts = propertyPath.split("\\.");
+        return parts[parts.length - 1];
+    }
+
+
     @Override
     protected ResponseEntity<Object> handleNoHandlerFoundException(NoHandlerFoundException ex,
                                                                    HttpHeaders headers,
@@ -56,22 +75,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         errorResponse.put("timestamp", LocalDateTime.now().toString());
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-    }
-
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(
-            MethodArgumentTypeMismatchException ex) {
-
-        log.warn("Invalid value '{}' for parameter '{}'. Expected type is '{}'."
-                , ex.getValue(), ex.getName(), ex.getRequiredType().getSimpleName());
-
-        Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.BAD_REQUEST,
-                "message", String.format("Invalid value '%s' for parameter '%s'. Expected type is '%s'.",
-                        ex.getValue(), ex.getName(), ex.getRequiredType().getSimpleName())
-        );
-
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @Override
@@ -94,30 +97,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(errorResponse);
     }
 
-    @ExceptionHandler(CourseNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleCourseNotFound(CourseNotFoundException ex) {
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException ex) {
+
+        log.warn("Invalid value '{}' for parameter '{}'. Expected type is '{}'.",
+                ex.getValue(), ex.getName(), ex.getRequiredType().getSimpleName());
+
         Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.NOT_FOUND,
-                "message", ex.getMessage()
+                "status", HttpStatus.BAD_REQUEST,
+                "message", String.format("Invalid value '%s' for parameter '%s'. Expected type is '%s'.",
+                        ex.getValue(), ex.getName(), ex.getRequiredType().getSimpleName())
         );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(CourseInstanceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleInstanceNotFound(CourseInstanceNotFoundException ex) {
-        Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.NOT_FOUND,
-                "message", ex.getMessage()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<?> handleUserNotFoundException(UserNotFoundException ex) {
+        Map<String, String> errors = new HashMap<>();
+        errors.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errors);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
-        Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.INTERNAL_SERVER_ERROR,
-                "message", ex.getMessage()
-        );
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+
 }

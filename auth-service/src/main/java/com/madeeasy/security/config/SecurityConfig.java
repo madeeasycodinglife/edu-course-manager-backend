@@ -1,6 +1,5 @@
 package com.madeeasy.security.config;
 
-
 import com.madeeasy.security.filter.JwtAuthenticationFilter;
 import com.madeeasy.security.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -36,26 +34,38 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityConfigProperties securityConfigProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(this.corsConfigurationSource()))
-                .authorizeHttpRequests(
-                        (requests) -> requests
-                                .requestMatchers(HttpMethod.POST, "/auth-service/sign-up").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth-service/sign-in").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth-service/log-out").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth-service/validate-access-token/**").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/auth-service/refresh-token/**").permitAll()
-                                .requestMatchers(HttpMethod.PATCH, "/auth-service/partial-update/**").permitAll()
-                                .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(requests -> {
+                    // Loop through the configurations to apply role-based security
+                    securityConfigProperties.getPaths().forEach((path, config) -> {
+                        HttpMethod method = HttpMethod.valueOf(config.getMethod());
+                        if (config.getRoles().isEmpty()) {
+                            // Publicly accessible
+                            requests.requestMatchers(method, path).permitAll();
+                        } else if (config.getRoles().size() == 1) {
+                            // Single role
+                            requests.requestMatchers(method, path)
+                                    .hasRole(config.getRoles().iterator().next().replace("ROLE_", ""));
+                        } else {
+                            // Multiple roles
+                            requests.requestMatchers(method, path)
+                                    .hasAnyRole(config.getRoles().stream()
+                                            .map(role -> role.replace("ROLE_", ""))
+                                            .toArray(String[]::new));
+                        }
+                    });
+                    requests.anyRequest().permitAll();
+                })
                 .authenticationProvider(authenticationProvider())
                 .sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
@@ -77,20 +87,17 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:8080")); // Allows requests from any origin
+        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:8080")); // Allows requests from specified origins
         configuration.setAllowedMethods(List.of("*")); // Allows all methods (GET, POST, PUT, etc.)
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-        // You can also set other configurations like allowed headers, exposed headers, etc. if needed
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
