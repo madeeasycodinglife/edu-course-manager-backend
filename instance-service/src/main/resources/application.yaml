@@ -89,6 +89,17 @@ management:
     health:
       show-details: ALWAYS  #To show all details in /health endpoint.
 
+
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+
+
 resilience4j:
   circuitbreaker:
     instances:
