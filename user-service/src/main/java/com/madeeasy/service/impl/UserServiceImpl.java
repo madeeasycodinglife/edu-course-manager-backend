@@ -38,10 +38,10 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private static final String USER = "user";
-    private final UserRepository userRepository;
-    private final HttpServletRequest httpServletRequest;
     private final RestTemplate restTemplate;
     private final CacheManager cacheManager;
+    private final UserRepository userRepository;
+    private final HttpServletRequest httpServletRequest;
 
     @Override
     @Cacheable(value = USER, key = "#root.methodName", unless = "#result == null")
@@ -226,7 +226,7 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    @Cacheable(value = USER, key = "#emailId")
+    @Cacheable(value = USER, key = "#emailId", unless = "#result == null")
     public UserResponseDTO getUserByEmailId(String emailId) {
         User foundUser = this.userRepository.findByEmail(emailId)
                 .orElseThrow(() -> new UserNotFoundException("User not found with email: " + emailId));
