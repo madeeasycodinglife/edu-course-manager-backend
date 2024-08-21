@@ -4,8 +4,6 @@ import com.madeeasy.dto.request.CourseRequestDTO;
 import com.madeeasy.dto.response.CourseResponseDTO;
 import com.madeeasy.dto.response.ResponseDTO;
 import com.madeeasy.entity.Course;
-import com.madeeasy.exception.CourseInstanceDeletionException;
-import com.madeeasy.exception.CourseInstanceNotFoundException;
 import com.madeeasy.exception.CourseNotFoundException;
 import com.madeeasy.repository.CourseRepository;
 import com.madeeasy.service.CourseService;
@@ -27,7 +25,6 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Slf4j
@@ -146,8 +143,6 @@ public class CourseServiceImpl implements CourseService {
         if (!courseRepository.existsById(id)) {
             return new ResponseDTO("Course with ID " + id + " does not exist.", NOT_FOUND);
         }
-        // Proceed with the deletion of the course
-        courseRepository.deleteById(id);
 
         // Create the URL for deleting the related course instances
         String courseServiceUrl = "http://course-instance-service/api/instances/courseId/" + id;
@@ -166,6 +161,9 @@ public class CourseServiceImpl implements CourseService {
 
             // Check if the response status is 200 OK
             if (response.getStatusCode().is2xxSuccessful()) {
+                // Proceed with the deletion of the course from the primary database
+                courseRepository.deleteById(id);
+
                 logger.info("Course instance deleted successfully for course ID: {}", id);
                 return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
             } else {
@@ -175,7 +173,7 @@ public class CourseServiceImpl implements CourseService {
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
                 logger.error("Course instance not found for course ID: {}", id);
-                return new ResponseDTO("Course instance not found for course ID: " + id, HttpStatus.NOT_FOUND);
+                return new ResponseDTO("Course instance not found or Not created yet for course ID: " + id, HttpStatus.NOT_FOUND);
             } else if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
                 logger.error("Bad request while deleting course instance: {}", e.getMessage());
                 return new ResponseDTO("Bad request while deleting course instance: " + e.getMessage(), HttpStatus.BAD_REQUEST);

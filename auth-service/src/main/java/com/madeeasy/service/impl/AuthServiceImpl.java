@@ -102,9 +102,6 @@ public class AuthServiceImpl implements AuthService {
                     .build();
         }
 
-        userRepository.save(user);
-
-
         String accessToken = jwtUtils.generateAccessToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
 
@@ -117,9 +114,6 @@ public class AuthServiceImpl implements AuthService {
                 .tokenType(TokenType.BEARER)
                 .build();
 
-        tokenRepository.save(token);
-
-        // rest-call to user-service
 
         UserRequest userRequest = UserRequest.builder()
                 .id(user.getId())
@@ -132,75 +126,69 @@ public class AuthServiceImpl implements AuthService {
 
         String url = "http://user-service/user-service/create";
 
-        // Make the POST request
+        // Make the POST request to the user-service
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         HttpEntity<UserRequest> requestEntity = new HttpEntity<>(userRequest, headers);
+        ResponseEntity<UserRequest> response = null;
+        try {
+            response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    UserRequest.class
+            );
+            // Check if the user-service responded successfully
+            if (response.getStatusCode().is2xxSuccessful()) {
 
-        restTemplate.exchange(
-                url,
-                HttpMethod.POST,
-                requestEntity,
-                UserRequest.class
-        );
+                // Save the user in the local repository only after a successful response from user-service
+                userRepository.save(user);
 
+                tokenRepository.save(token);
+
+                return AuthResponse.builder()
+                        .accessToken(accessToken)
+                        .refreshToken(refreshToken)
+                        .build();
+            } else {
+                log.error("Failed to create user in user-service for email: {}. Response status: {}", authRequest.getEmail(), response.getStatusCode());
+                return AuthResponse.builder()
+                        .message("Failed to create user in user-service for email: " + authRequest.getEmail())
+                        .status((HttpStatus) response.getStatusCode())
+                        .build();
+            }
+        } catch (HttpClientErrorException exception) {
+            log.error("Failed to create user in user-service for email: {}. Error response: {}", authRequest.getEmail(), exception.getResponseBodyAsString());
+            try {
+                // Parse the response body as JSON
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                // Extract specific fields from the JSON, such as 'message' and 'status'
+                String errorMessage = jsonNode.path("message").asText();
+                String errorStatus = jsonNode.path("status").asText();
+
+                // Log the extracted information
+                log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                return AuthResponse.builder()
+                        .status(HttpStatus.BAD_REQUEST)
+                        .message("Bad request : " + errorMessage)
+                        .build();
+            } catch (Exception e) {
+                log.error("Failed to parse the error response", e);
+            }
+        }
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .message("Sorry !! Something went wrong. Please Check It !")
                 .build();
     }
 
     public AuthResponse singUpFallback(AuthRequest authRequest, Throwable t) {
         log.error("message : {}", t.getMessage());
-
-        // Check if the throwable is an instance of HttpClientErrorException
-        if (t instanceof HttpClientErrorException exception) {
-            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
-                try {
-                    // Parse the response body as JSON
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
-
-                    // Extract specific fields from the JSON, such as 'message' and 'status'
-                    String errorMessage = jsonNode.path("message").asText();
-                    String errorStatus = jsonNode.path("status").asText();
-
-                    // Log the extracted information
-                    log.error("message : {} , status : {}", errorMessage, errorStatus);
-
-                    return AuthResponse.builder()
-                            .message("Bad request : " + errorMessage)
-                            .status(HttpStatus.BAD_REQUEST)
-                            .build();
-                } catch (Exception e) {
-                    log.error("Failed to parse the error response", e);
-                }
-            } else {
-                try {
-                    // Parse the response body as JSON
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
-
-                    // Extract specific fields from the JSON, such as 'message' and 'status'
-                    String errorMessage = jsonNode.path("message").asText();
-                    String errorStatus = jsonNode.path("status").asText();
-
-                    // Log the extracted information
-                    log.error("message : {} , status : {}", errorMessage, errorStatus);
-
-                    return AuthResponse.builder()
-                            .message("Bad request : " + errorMessage)
-                            .status(HttpStatus.BAD_REQUEST)
-                            .build();
-                } catch (Exception e) {
-                    log.error("Failed to parse the error response", e);
-                }
-            }
-        }
-
-        // Fallback response if the exception is not HttpClientErrorException or any other case
         return AuthResponse.builder()
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")

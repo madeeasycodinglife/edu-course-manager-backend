@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,7 +51,7 @@ public class UserServiceImpl implements UserService {
                         .email(user.getEmail())
                         .password(user.getPassword())
                         .phone(user.getPhone())
-                        .roles(user.getRoles())
+                        .roles(new ArrayList<>(user.getRoles()))
                         .build())
                 .toList();
     }
@@ -88,126 +89,141 @@ public class UserServiceImpl implements UserService {
     public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails) {
         User foundUser = getByEmailId(emailId);
         UserRequestDTO userRequestDTO = new UserRequestDTO();
+
         if (foundUser != null) {
             if (userDetails.getFullName() != null && !userDetails.getFullName().isBlank()) {
-                foundUser.setFullName(userDetails.getFullName());
                 userRequestDTO.setFullName(userDetails.getFullName());
             }
             if (userDetails.getEmail() != null && !userDetails.getEmail().isBlank()) {
-                foundUser.setEmail(userDetails.getEmail());
                 userRequestDTO.setEmail(userDetails.getEmail());
             }
             if (userDetails.getPassword() != null && !userDetails.getPassword().isBlank()) {
-                foundUser.setPassword(userDetails.getPassword());
                 userRequestDTO.setPassword(userDetails.getPassword());
             }
             if (userDetails.getPhone() != null && !userDetails.getPhone().isBlank()) {
-                foundUser.setPhone(userDetails.getPhone());
                 userRequestDTO.setPhone(userDetails.getPhone());
             }
             if (userDetails.getRoles() != null && !userDetails.getRoles().isEmpty()) {
-                foundUser.setRoles(userDetails.getRoles().stream().map(Role::valueOf).toList());
                 userRequestDTO.setRoles(userDetails.getRoles());
             }
 
-            User updatedUser = this.userRepository.save(foundUser);
-
-            // rest-call to the auth-service to let it know that the user has been updated
-
-            // take accessToken from Authorization header and send it to auth-service
-
+            // Send update request to auth-service
             String authorizationHeader = this.httpServletRequest.getHeader(HttpHeaders.AUTHORIZATION);
-
             String url = "http://auth-service/auth-service/partial-update/" + emailId;
             String accessToken = authorizationHeader.substring(7);
-            // Prepare headers with the Authorization token
+
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", "Bearer " + accessToken);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            // Create the HttpEntity with headers and the UserRequest object
             HttpEntity<UserRequestDTO> requestEntity = new HttpEntity<>(userRequestDTO, headers);
-            // Make the PATCH request
-            var authResponse = restTemplate.exchange(url, HttpMethod.PATCH, requestEntity, AuthResponse.class)
-                    .getBody();
-            assert authResponse != null;
+            try {
+                // Send the request to auth-service
+                ResponseEntity<AuthResponse> responseEntity = restTemplate.exchange(
+                        url, HttpMethod.PATCH, requestEntity, AuthResponse.class);
 
-            return UserAuthResponseDTO.builder()
-                    .id(updatedUser.getId())
-                    .fullName(updatedUser.getFullName())
-                    .email(updatedUser.getEmail())
-                    .password(updatedUser.getPassword())
-                    .phone(updatedUser.getPhone())
-                    .roles(updatedUser.getRoles())
-                    .accessToken(authResponse.getAccessToken())
-                    .refreshToken(authResponse.getRefreshToken())
-                    .build();
+                if (responseEntity.getStatusCode().is2xxSuccessful()) {
+                    AuthResponse authResponse = responseEntity.getBody();
+                    assert authResponse != null;
+
+                    // Update foundUser with the new details
+                    if (userDetails.getFullName() != null && !userDetails.getFullName().isBlank()) {
+                        foundUser.setFullName(userDetails.getFullName());
+                    }
+                    if (userDetails.getEmail() != null && !userDetails.getEmail().isBlank()) {
+                        foundUser.setEmail(userDetails.getEmail());
+                    }
+                    if (userDetails.getPassword() != null && !userDetails.getPassword().isBlank()) {
+                        foundUser.setPassword(userDetails.getPassword());
+                    }
+                    if (userDetails.getPhone() != null && !userDetails.getPhone().isBlank()) {
+                        foundUser.setPhone(userDetails.getPhone());
+                    }
+                    if (userDetails.getRoles() != null && !userDetails.getRoles().isEmpty()) {
+                        foundUser.setRoles(userDetails.getRoles().stream().map(Role::valueOf).toList());
+                    }
+
+                    // Save the updated user to the local repository
+                    User updatedUser = this.userRepository.save(foundUser);
+
+                    // Return successful response with tokens
+                    return UserAuthResponseDTO.builder()
+                            .id(updatedUser.getId())
+                            .fullName(updatedUser.getFullName())
+                            .email(updatedUser.getEmail())
+                            .password(updatedUser.getPassword())
+                            .phone(updatedUser.getPhone())
+                            .roles(updatedUser.getRoles())
+                            .accessToken(authResponse.getAccessToken())
+                            .refreshToken(authResponse.getRefreshToken())
+                            .build();
+                } else {
+                    // Log error and return appropriate response if the auth-service call fails
+                    log.error("Failed to update user in auth-service for email: {}. Response status: {}", emailId, responseEntity.getStatusCode());
+                    return UserAuthResponseDTO.builder()
+                            .status((HttpStatus) responseEntity.getStatusCode())
+                            .message("Failed to update user in auth-service for email: " + emailId)
+                            .build();
+                }
+            } catch (HttpClientErrorException exception) {
+                log.error("Failed to update user in auth-service for email: {}. Error response: {}", emailId, exception.getResponseBodyAsString());
+                return handleHttpClientErrorException(exception);
+            }
         }
+        // Return null if the user was not found
         return null;
     }
 
-    public UserAuthResponseDTO fallbackGetUser(String emailId,
-                                               UserRequestDTO userDetails,
-                                               Throwable t) {
+    public UserAuthResponseDTO fallbackGetUser(String emailId, UserPatchRequestDTO userDetails, Throwable t) {
         log.error("message : {}", t.getMessage());
 
-        // Check if the throwable is an instance of HttpClientErrorException
+        // Handle different types of exceptions and provide appropriate responses
         if (t instanceof HttpClientErrorException exception) {
-            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
-                try {
-                    // Parse the response body as JSON
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
-
-                    // Extract specific fields from the JSON, such as 'message' and 'status'
-                    String errorMessage = jsonNode.path("message").asText();
-                    String errorStatus = jsonNode.path("status").asText();
-
-                    // Log the extracted information
-                    log.error("message : {} , status : {}", errorMessage, errorStatus);
-
-                    return UserAuthResponseDTO.builder()
-                            .status(HttpStatus.BAD_REQUEST)
-                            .message("Bad request : " + errorMessage)
-                            .build();
-                } catch (Exception e) {
-                    log.error("Failed to parse the error response", e);
-                }
-            } else {
-                try {
-                    // Parse the response body as JSON
-                    ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
-
-                    // Extract specific fields from the JSON, such as 'message' and 'status'
-                    String errorMessage = jsonNode.path("message").asText();
-                    String errorStatus = jsonNode.path("status").asText();
-
-                    // Log the extracted information
-                    log.error("message : {} , status : {}", errorMessage, errorStatus);
-
-                    return UserAuthResponseDTO.builder()
-                            .status(HttpStatus.BAD_REQUEST)
-                            .message("Bad request : " + errorMessage)
-                            .build();
-                } catch (Exception e) {
-                    log.error("Failed to parse the error response", e);
-                }
-            }
+            return handleHttpClientErrorException(exception);
         }
 
-        // Fallback response if the exception is not HttpClientErrorException or any other case
+        // Default fallback response
         return UserAuthResponseDTO.builder()
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")
+                .message("Sorry !! Your request failed as Auth Service is unavailable. Please try again later.")
                 .build();
     }
+
+    private UserAuthResponseDTO handleHttpClientErrorException(HttpClientErrorException exception) {
+        try {
+            // Parse the error response body as JSON
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+            // Extract specific fields from the JSON
+            String errorMessage = jsonNode.path("message").asText();
+            String errorStatus = jsonNode.path("status").asText();
+
+            // Log the extracted information
+            log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+            // Return a response based on the parsed error
+            return UserAuthResponseDTO.builder()
+                    .status((HttpStatus) exception.getStatusCode())
+                    .message("Bad request : " + errorMessage)
+                    .build();
+        } catch (Exception e) {
+            log.error("Failed to parse the error response", e);
+        }
+
+        // Fallback if parsing fails
+        return UserAuthResponseDTO.builder()
+                .status((HttpStatus) exception.getStatusCode())
+                .message("An error occurred while processing the request.")
+                .build();
+    }
+
 
     @Override
     @Cacheable(value = USER, key = "#emailId")
     public UserResponseDTO getUserByEmailId(String emailId) {
         User foundUser = this.userRepository.findByEmail(emailId)
-                .orElse(null);
+                .orElseThrow(() -> new UserNotFoundException("User not found with email: " + emailId));
         if (foundUser != null) {
             return UserResponseDTO.builder()
                     .id(foundUser.getId())
@@ -215,7 +231,7 @@ public class UserServiceImpl implements UserService {
                     .email(foundUser.getEmail())
                     .password(foundUser.getPassword())
                     .phone(foundUser.getPhone())
-                    .roles(foundUser.getRoles())
+                    .roles(new ArrayList<>(foundUser.getRoles()))
                     .build();
         }
         return null;

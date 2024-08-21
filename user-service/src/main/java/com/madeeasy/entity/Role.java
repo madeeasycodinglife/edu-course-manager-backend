@@ -1,5 +1,7 @@
 package com.madeeasy.entity;
 
-public enum Role {
+import java.io.Serializable;
+
+public enum Role implements Serializable {
     ADMIN, USER
 }
