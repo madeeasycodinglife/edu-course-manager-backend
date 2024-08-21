@@ -80,7 +80,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     throw new TokenException("Token is expired or revoked");
                 }
             } catch (TokenException e) {
-                response.sendError(HttpServletResponse.SC_FORBIDDEN, e.getMessage());
+                handleInvalidToken(response, e.getMessage());
                 return; // Exit the filter chain
             }
 
@@ -130,7 +130,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private void handleInvalidToken(HttpServletResponse response, String message) throws IOException {
         Map<String, Object> errorResponse = Map.of(
-                "status", HttpStatus.UNAUTHORIZED.value(),
+                "status", HttpStatus.UNAUTHORIZED,
                 "message", message
         );
 

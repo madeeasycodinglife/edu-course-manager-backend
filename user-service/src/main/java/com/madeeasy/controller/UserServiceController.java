@@ -37,6 +37,12 @@ public class UserServiceController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrors);
         }
         UserAuthResponseDTO updatedUser = this.userService.partiallyUpdateUser(emailId, user);
+        if (updatedUser == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    Map.of("status", HttpStatus.NOT_FOUND,
+                            "message", "User not found with emailId: " + emailId)
+            );
+        }
         return ResponseEntity.status(HttpStatus.OK).body(updatedUser);
     }
 

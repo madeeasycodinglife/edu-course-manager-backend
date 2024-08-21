@@ -56,9 +56,9 @@ security:
           - ROLE_USER
       - path: /user-service/partial-update/**
         method: PATCH
-        roles: []
-#          - ROLE_ADMIN
-#          - ROLE_USER
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
       - path: /user-service/delete/**
         method: DELETE
         roles:
@@ -66,9 +66,9 @@ security:
           - ROLE_USER
       - path: /user-service/{emailId}
         method: GET
-        roles: []
-#          - ROLE_ADMIN
-#          - ROLE_USER
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
 
 
 

@@ -16,6 +16,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -27,6 +28,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -39,6 +41,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final HttpServletRequest httpServletRequest;
     private final RestTemplate restTemplate;
+    private final CacheManager cacheManager;
 
     @Override
     @Cacheable(value = USER, key = "#root.methodName", unless = "#result == null")
@@ -86,7 +89,8 @@ public class UserServiceImpl implements UserService {
             @CacheEvict(value = USER, key = "'getAllUsers'")
     })
     @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackGetUser")
-    public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails) {
+    public UserAuthResponseDTO partiallyUpdateUser(String emailId,
+                                                   UserPatchRequestDTO userDetails) {
         User foundUser = getByEmailId(emailId);
         UserRequestDTO userRequestDTO = new UserRequestDTO();
 
@@ -145,6 +149,8 @@ public class UserServiceImpl implements UserService {
 
                     // Save the updated user to the local repository
                     User updatedUser = this.userRepository.save(foundUser);
+
+                    Objects.requireNonNull(this.cacheManager.getCache(USER)).evict(emailId);
 
                     // Return successful response with tokens
                     return UserAuthResponseDTO.builder()
