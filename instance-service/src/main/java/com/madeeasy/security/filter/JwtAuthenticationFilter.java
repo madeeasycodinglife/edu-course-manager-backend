@@ -85,7 +85,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     handleInvalidToken(response, "Invalid token or token not found.");
                     return; // Exit the filter chain
                 }
-            } catch (HttpClientErrorException | HttpServerErrorException e) {
+            } catch (HttpClientErrorException e) {
+                log.error("Error in JwtAuthenticationFilter: {}", e.getMessage());
+                handleInvalidToken(response, "Invalid token or token not found.");
+                return;
+            } catch (HttpServerErrorException e) {
                 log.error("Error in JwtAuthenticationFilter: {}", e.getMessage());
                 handleServiceUnavailable(response);
                 return; // Exit the filter chain
@@ -124,21 +128,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Initialize the path matcher to handle wildcard patterns
         PathMatcher pathMatcher = new AntPathMatcher();
 
-        // Log the URI and method being checked
-        log.info("Checking URI: {} Method: {} against configured paths.", uri, method);
 
         // Check if any configured path matches the URI and HTTP method
-        boolean requiresAuth = securityConfigProperties.getPaths().stream()
+
+        return securityConfigProperties.getPaths().stream()
                 .anyMatch(config ->
                         pathMatcher.match(config.getPath(), uri) &&
                                 method.equalsIgnoreCase(config.getMethod()) &&
                                 !config.getRoles().isEmpty()
                 );
-
-        // Log whether authorization is required
-        log.info("URI: {} Method: {} requires authorization: {}", uri, method, requiresAuth);
-
-        return requiresAuth;
     }
 
 

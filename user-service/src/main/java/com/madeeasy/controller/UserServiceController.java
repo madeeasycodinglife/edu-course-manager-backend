@@ -40,16 +40,6 @@ public class UserServiceController {
         return ResponseEntity.status(HttpStatus.OK).body(updatedUser);
     }
 
-    @DeleteMapping(path = "/delete/{emailId}")
-    public ResponseEntity<?> deleteUser(@PathVariable("emailId") String emailId) {
-        Map<String, String> validationErrors = ValidationUtils.validateEmail(emailId);
-        if (!validationErrors.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validationErrors);
-        }
-        this.userService.deleteUser(emailId);
-        return ResponseEntity.status(HttpStatus.OK).build();
-    }
-
     @GetMapping(path = "/{emailId}")
     public ResponseEntity<?> getUserByEmailId(@PathVariable("emailId") String emailId) {
         Map<String, String> validationErrors = ValidationUtils.validateEmail(emailId);

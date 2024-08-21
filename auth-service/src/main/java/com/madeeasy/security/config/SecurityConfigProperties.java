@@ -1,23 +1,23 @@
 package com.madeeasy.security.config;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.List;
 
 @Data
-@Configuration
+@Component
 @ConfigurationProperties(prefix = "security.authorization")
 public class SecurityConfigProperties {
-
-    private Map<String, PathConfig> paths;
+    private List<PathConfig> paths;
 
     @Data
     public static class PathConfig {
-        private Set<String> roles;
+        private String path;
         private String method;
+        private List<String> roles;
     }
 }
-

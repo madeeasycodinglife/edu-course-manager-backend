@@ -28,19 +28,32 @@ spring:
   web:
     resources:
       add-mappings: false
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
+
 
 security:
   authorization:
     paths:
       - path: /api/courses
         method: GET
-        roles: []
+        roles: [ ]
       - path: /api/courses/**
         method: GET
-        roles: []
+        roles: [ ]
       - path: /api/courses/code/**
         method: GET
-        roles: []
+        roles: [ ]
       - path: /api/courses
         method: POST
         roles:
@@ -49,7 +62,6 @@ security:
         method: DELETE
         roles:
           - ROLE_ADMIN
-
 server:
   port: 8081
 
@@ -90,3 +102,11 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 3
         automaticTransitionFromOpenToHalfOpenEnabled: true
         slidingWindowType: COUNT_BASED
+
+  retry:
+    instances:
+      myRetry:
+        registerHealthIndicator: true
+        retryCount: 3
+        waitDuration: 2s
+

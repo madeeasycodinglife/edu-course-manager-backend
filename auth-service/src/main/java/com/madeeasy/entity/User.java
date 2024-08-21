@@ -4,6 +4,7 @@ package com.madeeasy.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Data
@@ -12,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @Entity
 @Table(name = "`user`")
-public class User {
+public class User implements Serializable {
 
     @Id
     private String id;

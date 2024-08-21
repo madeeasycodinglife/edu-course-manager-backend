@@ -41,26 +41,25 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(this.corsConfigurationSource()))
-                .authorizeHttpRequests(requests -> {
-                    // Loop through the configurations to apply role-based security
-                    securityConfigProperties.getPaths().forEach((path, config) -> {
-                        HttpMethod method = HttpMethod.valueOf(config.getMethod());
+                .authorizeHttpRequests(authorizeRequests -> {
+                    // Process each path configuration
+                    securityConfigProperties.getPaths().forEach(config -> {
+                        HttpMethod method = HttpMethod.valueOf(config.getMethod().toUpperCase());
+
                         if (config.getRoles().isEmpty()) {
-                            // Publicly accessible
-                            requests.requestMatchers(method, path).permitAll();
-                        } else if (config.getRoles().size() == 1) {
-                            // Single role
-                            requests.requestMatchers(method, path)
-                                    .hasRole(config.getRoles().iterator().next().replace("ROLE_", ""));
+                            authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
                         } else {
-                            // Multiple roles
-                            requests.requestMatchers(method, path)
-                                    .hasAnyRole(config.getRoles().stream()
-                                            .map(role -> role.replace("ROLE_", ""))
-                                            .toArray(String[]::new));
+                            // Configure role-based access
+                            String[] roles = config.getRoles().stream()
+                                    .map(role -> role.replace("ROLE_", ""))
+                                    .toArray(String[]::new);
+
+                            authorizeRequests.requestMatchers(method, config.getPath())
+                                    .hasAnyRole(roles);
+
                         }
                     });
-                    requests.anyRequest().permitAll();
+                    authorizeRequests.anyRequest().permitAll();
                 })
                 .authenticationProvider(authenticationProvider())
                 .sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

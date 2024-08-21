@@ -1,5 +1,7 @@
 package com.madeeasy.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.madeeasy.dto.request.AuthRequest;
 import com.madeeasy.dto.request.LogOutRequest;
 import com.madeeasy.dto.request.SignInRequestDTO;
@@ -9,16 +11,20 @@ import com.madeeasy.entity.Role;
 import com.madeeasy.entity.Token;
 import com.madeeasy.entity.TokenType;
 import com.madeeasy.entity.User;
-import com.madeeasy.exception.ClientException;
 import com.madeeasy.exception.TokenException;
 import com.madeeasy.repository.TokenRepository;
 import com.madeeasy.repository.UserRepository;
 import com.madeeasy.service.AuthService;
 import com.madeeasy.util.JwtUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import jakarta.servlet.http.HttpServletRequest;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -37,24 +43,24 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
-
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+
+    private static final String AUTH = "auth";
     private final UserRepository userRepository;
     private final JwtUtils jwtUtils;
     private final TokenRepository tokenRepository;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
     private final RestTemplate restTemplate;
-    private final HttpServletRequest request;
+    private final CacheManager cacheManager;
 
-
-    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "singUpFallback")
     @Override
+    @Retry(name = "myRetry", fallbackMethod = "singUpFallback")
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "singUpFallback")
     public AuthResponse singUp(AuthRequest authRequest) {
         List<String> authRequestRoles = authRequest.getRoles();
 
@@ -89,7 +95,7 @@ public class AuthServiceImpl implements AuthService {
 
         // Check if user with the given email already exists
         if (userRepository.existsByEmail(authRequest.getEmail())) {
-            log.error("User with Email :{} already exists", authRequest.getEmail());
+            log.error("User with Email : {} already exists", authRequest.getEmail());
             return AuthResponse.builder()
                     .message("User with Email : " + authRequest.getEmail() + " already exists")
                     .status(HttpStatus.CONFLICT)
@@ -132,16 +138,12 @@ public class AuthServiceImpl implements AuthService {
 
         HttpEntity<UserRequest> requestEntity = new HttpEntity<>(userRequest, headers);
 
-        try {
-            restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    requestEntity,
-                    UserRequest.class
-            );
-        } catch (HttpClientErrorException e) {
-            handleClientErrorException(e);
-        }
+        restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                requestEntity,
+                UserRequest.class
+        );
 
 
         return AuthResponse.builder()
@@ -150,16 +152,55 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    private void handleClientErrorException(HttpClientErrorException e) {
-        HttpStatusCode statusCode = e.getStatusCode();
-        if (statusCode.equals(BAD_REQUEST)) {
-            throw new ClientException("Bad request : " + e.getResponseBodyAsString());
-        }
-        throw new ClientException("Client-side error occurred : " + e.getResponseBodyAsString());
-    }
-
     public AuthResponse singUpFallback(AuthRequest authRequest, Throwable t) {
         log.error("message : {}", t.getMessage());
+
+        // Check if the throwable is an instance of HttpClientErrorException
+        if (t instanceof HttpClientErrorException exception) {
+            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return AuthResponse.builder()
+                            .message("Bad request : " + errorMessage)
+                            .status(HttpStatus.BAD_REQUEST)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            } else {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return AuthResponse.builder()
+                            .message("Bad request : " + errorMessage)
+                            .status(HttpStatus.BAD_REQUEST)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            }
+        }
+
+        // Fallback response if the exception is not HttpClientErrorException or any other case
         return AuthResponse.builder()
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")
@@ -167,6 +208,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = AUTH, key = "#signInRequest.email + ':accessToken'"),
+            @CacheEvict(value = AUTH, key = "#signInRequest.email + ':refreshToken'")
+    })
     public AuthResponse singIn(SignInRequestDTO signInRequest) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(signInRequest.getEmail(), signInRequest.getPassword()));
         if (authentication.isAuthenticated()) {
@@ -207,14 +252,25 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = AUTH, key = "#logOutRequest.email + ':accessToken'"),
+            @CacheEvict(value = AUTH, key = "#logOutRequest.email + ':refreshToken'")
+    })
     public void logOut(LogOutRequest logOutRequest) {
         String email = logOutRequest.getEmail();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("Email not found"));
         jwtUtils.validateToken(logOutRequest.getAccessToken(), jwtUtils.getUserName(logOutRequest.getAccessToken()));
         revokeAllPreviousValidTokens(user);
+
+
+        // Perform cache eviction manually
+        Cache cache = cacheManager.getCache(AUTH);
+        assert cache != null;
+        log.info("cache : {}", cache.get("accessToken"));
     }
 
     @Override
+    @Cacheable(value = AUTH, keyGenerator = "customKeyGenerator", unless = "#result == null")
     public boolean validateAccessToken(String accessToken) {
 
         Token token = tokenRepository.findByToken(accessToken).orElseThrow(() -> new TokenException("Token Not found"));
@@ -230,6 +286,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = AUTH, key = "#userRequest.email + ':accessToken'"),
+            @CacheEvict(value = AUTH, key = "#userRequest.email + ':refreshToken'")
+    })
     public AuthResponse partiallyUpdateUser(String emailId, UserRequest userRequest) {
         User user = userRepository.findByEmail(emailId).orElseThrow(() -> new UsernameNotFoundException("Email not found"));
 
@@ -273,6 +333,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Cacheable(value = AUTH, keyGenerator = "customKeyGenerator", unless = "#result == null")
     public AuthResponse refreshToken(String refreshToken) {
 
         boolean isValid = jwtUtils.validateToken(refreshToken, jwtUtils.getUserName(refreshToken));

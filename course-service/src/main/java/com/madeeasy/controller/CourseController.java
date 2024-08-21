@@ -2,6 +2,7 @@ package com.madeeasy.controller;
 
 import com.madeeasy.dto.request.CourseRequestDTO;
 import com.madeeasy.dto.response.CourseResponseDTO;
+import com.madeeasy.dto.response.ResponseDTO;
 import com.madeeasy.service.CourseService;
 import com.madeeasy.util.ValidationUtils;
 import jakarta.validation.Valid;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -71,15 +71,8 @@ public class CourseController {
         if (!errors.isEmpty()) {
             return ResponseEntity.badRequest().body(errors);
         }
-        courseService.deleteCourse(id);
+        ResponseDTO responseDTO = courseService.deleteCourse(id);
 
-        // Create a response message
-        String message = String.format("Course with ID %d has been successfully deleted.", id);
-
-        // Create the response body
-        Map<String, String> responseBody = new HashMap<>();
-        responseBody.put("message", message);
-
-        return ResponseEntity.status(HttpStatus.OK).body(responseBody);
+        return ResponseEntity.status(responseDTO.getStatus()).body(responseDTO);
     }
 }

@@ -4,15 +4,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.http.HttpStatus;
 
 import java.io.Serializable;
 
 @Data
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse implements Serializable {
+@NoArgsConstructor
+public class ResponseDTO implements Serializable {
 
-    private String accessToken;
-    private String refreshToken;
+    private String message;
+    private HttpStatus status;
 }

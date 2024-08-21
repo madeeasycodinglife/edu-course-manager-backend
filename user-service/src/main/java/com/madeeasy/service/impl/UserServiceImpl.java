@@ -1,5 +1,7 @@
 package com.madeeasy.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.madeeasy.dto.request.UserPatchRequestDTO;
 import com.madeeasy.dto.request.UserRequestDTO;
 import com.madeeasy.dto.response.AuthResponse;
@@ -14,25 +16,31 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.UUID;
 
-@Service
-@RequiredArgsConstructor
-@Transactional
 @Slf4j
+@Service
+@Transactional
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final String USER = "user";
     private final UserRepository userRepository;
     private final HttpServletRequest httpServletRequest;
     private final RestTemplate restTemplate;
 
     @Override
+    @Cacheable(value = USER, key = "#root.methodName", unless = "#result == null")
     public List<UserResponseDTO> getAllUsers() {
         List<User> userList = this.userRepository.findAll();
         return userList.stream()
@@ -48,6 +56,9 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = USER, key = "'getAllUsers'")
+    })
     public UserAuthResponseDTO createUser(UserRequestDTO user) {
         User userEntity = User.builder()
                 .id(UUID.randomUUID().toString())
@@ -69,8 +80,11 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackGetUser")
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = USER, key = "'getAllUsers'")
+    })
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackGetUser")
     public UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails) {
         User foundUser = getByEmailId(emailId);
         UserRequestDTO userRequestDTO = new UserRequestDTO();
@@ -132,23 +146,65 @@ public class UserServiceImpl implements UserService {
         return null;
     }
 
-    public UserAuthResponseDTO fallbackGetUser(String emailId, UserRequestDTO userDetails, Throwable t) {
-        log.error("fallback error: {}", t.getMessage());
+    public UserAuthResponseDTO fallbackGetUser(String emailId,
+                                               UserRequestDTO userDetails,
+                                               Throwable t) {
+        log.error("message : {}", t.getMessage());
+
+        // Check if the throwable is an instance of HttpClientErrorException
+        if (t instanceof HttpClientErrorException exception) {
+            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return UserAuthResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            } else {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return UserAuthResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            }
+        }
+
+        // Fallback response if the exception is not HttpClientErrorException or any other case
         return UserAuthResponseDTO.builder()
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .message("AuthService is Unavailable !!")
+                .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")
                 .build();
     }
 
     @Override
-    public void deleteUser(String emailId) {
-        if (!this.userRepository.existsByEmail(emailId)) {
-            throw new UserNotFoundException("User not found with emailId: " + emailId);
-        }
-        this.userRepository.deleteByEmail(emailId);
-    }
-
-    @Override
+    @Cacheable(value = USER, key = "#emailId")
     public UserResponseDTO getUserByEmailId(String emailId) {
         User foundUser = this.userRepository.findByEmail(emailId)
                 .orElse(null);

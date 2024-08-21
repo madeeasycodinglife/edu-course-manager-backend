@@ -44,8 +44,6 @@ public class SecurityConfig {
                         HttpMethod method = HttpMethod.valueOf(config.getMethod().toUpperCase());
 
                         if (config.getRoles().isEmpty()) {
-                            // Permit all for paths with empty roles
-                            log.info("Permitting all for path: {} with method: {}", config.getPath(), method);
                             authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
                         } else {
                             // Configure role-based access
@@ -53,9 +51,7 @@ public class SecurityConfig {
                                     .map(role -> role.replace("ROLE_", ""))
                                     .toArray(String[]::new);
 
-                            // If there are multiple roles, use hasAnyRole
-                            log.info("Permitting {} for path: {} with method: {}", roles, config.getPath(), method);
-                            authorizeRequests.requestMatchers(method, config.getPath())
+                           authorizeRequests.requestMatchers(method, config.getPath())
                                     .hasAnyRole(roles);
 
                         }

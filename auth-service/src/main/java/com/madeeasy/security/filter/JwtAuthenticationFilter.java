@@ -25,18 +25,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.PathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
@@ -49,27 +50,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        String requestUri = request.getRequestURI();
-        HttpMethod requestMethod = HttpMethod.valueOf(request.getMethod());
-
-        if (StringUtils.isEmpty(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String accessToken = authorizationHeader.substring(7);
-        String userName = null;
-
-        try {
-            userName = jwtUtils.getUserName(accessToken);
-        } catch (TokenValidationException e) {
-            handleInvalidToken(response, e.getMessage());
-            return; // Exit the filter chain
-        }
 
         // Check if the request URI requires authorization and validate method
-        if (requiresAuthorization(requestUri, requestMethod)) {
+        if (requiresAuthorization(request)) {
+            String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+            if (StringUtils.isEmpty(authorizationHeader) || !authorizationHeader.startsWith("Bearer ")) {
+                handleInvalidToken(response, "Authorization header missing or malformed.");
+                return; // Exit the filter chain
+            }
+
+            String accessToken = authorizationHeader.substring(7);
+            String userName = null;
+
+            try {
+                userName = jwtUtils.getUserName(accessToken);
+            } catch (TokenValidationException e) {
+                handleInvalidToken(response, e.getMessage());
+                return; // Exit the filter chain
+            }
             String finalUserName = userName;
             User user = userRepository.findByEmail(userName)
                     .orElseThrow(() -> new UsernameNotFoundException("User not found with email " + finalUserName));
@@ -109,15 +108,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean requiresAuthorization(String uri, HttpMethod method) {
-        return securityConfigProperties.getPaths().entrySet().stream()
-                .anyMatch(entry -> {
-                    SecurityConfigProperties.PathConfig pathConfig = entry.getValue();
-                    boolean uriMatches = uri.matches(entry.getKey());
-                    boolean methodMatches = pathConfig.getMethod().equalsIgnoreCase(method.name());
-                    return uriMatches && methodMatches;
-                });
+    private boolean requiresAuthorization(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+
+
+        // Initialize the path matcher to handle wildcard patterns
+        PathMatcher pathMatcher = new AntPathMatcher();
+
+
+        // Check if any configured path matches the URI and HTTP method
+
+        return securityConfigProperties.getPaths().stream()
+                .anyMatch(config ->
+                        pathMatcher.match(config.getPath(), uri) &&
+                                method.equalsIgnoreCase(config.getMethod()) &&
+                                !config.getRoles().isEmpty()
+                );
     }
+
 
     private void handleInvalidToken(HttpServletResponse response, String message) throws IOException {
         Map<String, Object> errorResponse = Map.of(

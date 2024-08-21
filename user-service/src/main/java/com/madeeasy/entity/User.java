@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.List;
 
 
@@ -15,7 +16,7 @@ import java.util.List;
 @Builder
 @Entity
 @Table(name = "`user`")
-public class User {
+public class User implements Serializable {
 
     @Id
     private String id;

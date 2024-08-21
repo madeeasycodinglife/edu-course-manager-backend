@@ -14,8 +14,6 @@ public interface UserService {
 
     UserAuthResponseDTO partiallyUpdateUser(String emailId, UserPatchRequestDTO userDetails);
 
-    void deleteUser(String emailId);
-
     UserResponseDTO getUserByEmailId(String emailId);
 
 }

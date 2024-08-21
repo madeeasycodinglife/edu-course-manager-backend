@@ -16,7 +16,18 @@ spring:
     username: sa
     password: sa
     driver-class-name: org.h2.Driver
-
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -37,14 +48,14 @@ security:
     paths:
       - path: /api/instances
         method: GET
-        roles: []
+        roles: [ ]
       - path: /api/instances
         method: POST
         roles:
           - ROLE_ADMIN
       - path: /api/instances/**
         method: GET
-        roles: []
+        roles: [ ]
       - path: /api/instances/**
         method: DELETE
         roles:
@@ -91,12 +102,13 @@ resilience4j:
         automaticTransitionFromOpenToHalfOpenEnabled: true
         slidingWindowType: COUNT_BASED
 
+# you can you all other circuit breaker patterns
 
-  retry:
-    instances:
-      myRetry:
-        registerHealthIndicator: true
-        retryCount: 3
-        waitDuration: 2s
+#  retry:
+#    instances:
+#      myRetry:
+#        registerHealthIndicator: true
+#        retryCount: 3
+#        waitDuration: 2s
 
 

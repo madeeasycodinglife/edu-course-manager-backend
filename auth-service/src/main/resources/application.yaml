@@ -1,4 +1,3 @@
-
 server:
   port: 8083
 
@@ -30,28 +29,41 @@ spring:
   web:
     resources:
       add-mappings: false
-
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
 security:
   authorization:
     paths:
       - path: /auth-service/sign-up
         method: POST
-        roles: []
+        roles: [ ]
       - path: /auth-service/sign-in
         method: POST
-        roles: []
+        roles: [ ]
       - path: /auth-service/log-out
         method: POST
-        roles: []
+        roles: [ ]
       - path: /auth-service/validate-access-token/**
         method: POST
-        roles: []
+        roles: [ ]
       - path: /auth-service/refresh-token/**
         method: POST
-        roles: []
+        roles: [ ]
       - path: /auth-service/partial-update/**
         method: PATCH
-        roles: []
+        roles:
+          - ROLE_ADMIN
+          - ROLE_USER
 
 
 

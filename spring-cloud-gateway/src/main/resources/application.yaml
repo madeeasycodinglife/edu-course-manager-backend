@@ -31,6 +31,13 @@ spring:
               args:
                 name: fault-service
                 fallbackUri: forward:/fallback/course-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter:
+                  replenishRate: 50  # Number of tokens generated per second
+                  burstCapacity: 100  # Maximum number of tokens
+                  requestedTokens: 1  # Number of tokens required per request
+                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
 
 
         - id: course-instance-service
@@ -42,6 +49,13 @@ spring:
               args:
                 name: fault-service
                 fallbackUri: forward:/fallback/instance-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter:
+                  replenishRate: 50  # Number of tokens generated per second
+                  burstCapacity: 100  # Maximum number of tokens
+                  requestedTokens: 1  # Number of tokens required per request
+                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
 
 
         - id: auth-service
@@ -53,6 +67,13 @@ spring:
               args:
                 name: fault-service
                 fallbackUri: forward:/fallback/auth-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter:
+                  replenishRate: 50  # Number of tokens generated per second
+                  burstCapacity: 100  # Maximum number of tokens
+                  requestedTokens: 1  # Number of tokens required per request
+                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
 
 
         - id: user-service
@@ -64,6 +85,14 @@ spring:
               args:
                 name: fault-service
                 fallbackUri: forward:/fallback/user-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter:
+                  replenishRate: 50  # Number of tokens generated per second
+                  burstCapacity: 100  # Maximum number of tokens
+                  requestedTokens: 1  # Number of tokens required per request
+                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
+
 
   output:
     ansi:
@@ -102,15 +131,21 @@ resilience4j:
     instances:
       fault-service:
         timeoutDuration: 10s
+
+
+
+
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-    registry-fetch-interval-seconds: 2
+    registry-fetch-interval-seconds: 5
   instance:
     prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 3
-    lease-expiration-duration-in-seconds: 5
+    lease-renewal-interval-in-seconds: 10  # Increase if network is slow
+    lease-expiration-duration-in-seconds: 30  # Increase expiration duration
+
 
 
 logging:

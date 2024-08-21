@@ -1,4 +1,3 @@
-
 server:
   port: 8084
 spring:
@@ -12,7 +11,18 @@ spring:
       enabled: true
   main:
     allow-circular-references: true
-
+  cache:
+    type: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
 
   datasource:
     url: jdbc:h2:mem:user-service
@@ -38,7 +48,7 @@ security:
     paths:
       - path: /user-service/create
         method: POST
-        roles: []
+        roles: [ ]
       - path: /user-service/full-update/**
         method: PUT
         roles:

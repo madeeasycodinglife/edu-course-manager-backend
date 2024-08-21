@@ -1,18 +1,21 @@
 package com.madeeasy.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.madeeasy.dto.request.CourseInstanceRequestDTO;
 import com.madeeasy.dto.response.CourseInstanceResponseDTO;
 import com.madeeasy.entity.CourseInstance;
 import com.madeeasy.exception.CourseInstanceNotFoundException;
-import com.madeeasy.exception.CourseNotFoundException;
 import com.madeeasy.repository.CourseInstanceRepository;
 import com.madeeasy.service.CourseInstanceService;
 import com.madeeasy.vo.CourseResponseDTO;
-import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,54 +24,46 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class CourseInstanceServiceImpl implements CourseInstanceService {
 
+    private static final String COURSE_INSTANCE = "courseInstance";
     private final CourseInstanceRepository courseInstanceRepository;
     private final RestTemplate restTemplate;
     private final HttpServletRequest httpServletRequest;
-    Logger logger = LoggerFactory.getLogger(CourseInstanceServiceImpl.class);
 
 
-    @Retry(name = "myRetry", fallbackMethod = "retryFallbackCreateInstance")
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = COURSE_INSTANCE, key = "'getAllInstances'"),
+            @CacheEvict(value = COURSE_INSTANCE, key = "#year + '-' + #semester")
+    })
+    @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackCreateInstance")
     public CourseInstanceResponseDTO createInstance(CourseInstanceRequestDTO instance) {
 
         String courseServiceUrl = "http://course-service/api/courses/" + instance.getCourseId();
         String authorizationHeader = httpServletRequest.getHeader(HttpHeaders.AUTHORIZATION);
 
-        try {
-            // Check if the course exists
-            ResponseEntity<CourseResponseDTO> courseResponse = fetchCourse(courseServiceUrl, authorizationHeader);
+        ResponseEntity<CourseResponseDTO> courseResponse = fetchCourse(courseServiceUrl, authorizationHeader);
 
-            if (courseResponse.getStatusCode().is2xxSuccessful()) {
-                // Course exists, proceed with creating the instance
-                CourseInstance courseInstance = CourseInstance.builder()
-                        .year(instance.getYear())
-                        .semester(instance.getSemester())
-                        .courseId(instance.getCourseId())
-                        .build();
+        // Course exists, proceed with creating the instance
+        CourseInstance courseInstance = CourseInstance.builder()
+                .year(instance.getYear())
+                .semester(instance.getSemester())
+                .courseId(instance.getCourseId())
+                .build();
 
-                CourseInstance savedInstance = courseInstanceRepository.save(courseInstance);
+        CourseInstance savedInstance = courseInstanceRepository.save(courseInstance);
 
-                return CourseInstanceResponseDTO.builder()
-                        .id(savedInstance.getId())
-                        .year(savedInstance.getYear())
-                        .semester(savedInstance.getSemester())
-                        .courseId(savedInstance.getCourseId())
-                        .build();
-            } else {
-                throw new CourseNotFoundException("Course not found with id: " + instance.getCourseId());
-            }
-        } catch (HttpClientErrorException.NotFound e) {
-            // Handle the case where the course was not found
-            throw new CourseNotFoundException("Course not found with id: " + instance.getCourseId());
-        } catch (Exception e) {
-            // Handle other potential exceptions
-            throw new RuntimeException("Error occurred while creating the instance", e);
-        }
+        return CourseInstanceResponseDTO.builder()
+                .id(savedInstance.getId())
+                .year(savedInstance.getYear())
+                .semester(savedInstance.getSemester())
+                .courseId(savedInstance.getCourseId())
+                .build();
     }
 
     private ResponseEntity<CourseResponseDTO> fetchCourse(String url, String authorizationHeader) {
@@ -87,22 +82,63 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
 
 
     // Fallback method for createInstance
-    public CourseInstanceResponseDTO retryFallbackCreateInstance(CourseInstanceRequestDTO instance, Throwable throwable) {
-        // Log the error for debugging purposes
-        logger.error("Fallback method triggered for createInstance. Error: {}", throwable.getMessage());
+    public CourseInstanceResponseDTO fallbackCreateInstance(CourseInstanceRequestDTO instance, Throwable t) {
+        log.error("message : {}", t.getMessage());
 
-        // Return a default or fallback response
+        // Check if the throwable is an instance of HttpClientErrorException
+        if (t instanceof HttpClientErrorException exception) {
+            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return CourseInstanceResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            } else {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return CourseInstanceResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            }
+        }
+
+        // Fallback response if the exception is not HttpClientErrorException or any other case
         return CourseInstanceResponseDTO.builder()
-                .id(null)  // Indicate no valid ID could be created
-                .year(null) // you can write instance.getYear()
-                .semester(null) // you can write instance.getSemester()
-                .courseId(null) // you can write instance.getCourseId()
-                .message("Sorry !! Course instance creation failed as Course Service is unavailable. Please try again later.")
+                .message("Sorry !! Token creation failed as User Service is unavailable. Please try again later.")
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .build();
     }
 
     @Override
+    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester")
     public List<CourseInstanceResponseDTO> getInstancesByYearAndSemester(int year, int semester) {
         List<CourseInstance> courseInstance = this.courseInstanceRepository.findByYearAndSemester(year, semester);
 
@@ -120,7 +156,9 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
                 .toList();
     }
 
+
     @Override
+    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId")
     public CourseInstanceResponseDTO getInstanceByYearSemesterAndCourseId(int year, int semester, Long courseId) {
 
         CourseInstance courseInstance = this.courseInstanceRepository
@@ -152,8 +190,9 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
      * -> If the instance exists, delete the instance.
      * -> The course remains in the system, and only that specific instance is removed.
      */
-    @Transactional
     @Override
+    @Transactional
+    @CacheEvict(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId")
     public void deleteInstance(int year, int semester, Long courseId) {
         if (!this.courseInstanceRepository.existsByYearAndSemesterAndCourseId(year, semester, courseId)) {
             throw new CourseInstanceNotFoundException("Course instance not found for year " + year + " and semester " + semester + " and course id " + courseId);
@@ -163,6 +202,7 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
     }
 
     @Override
+    @Cacheable(value = COURSE_INSTANCE, key = "#root.methodName", unless = "#result == null")
     public List<CourseInstanceResponseDTO> getAllInstances() {
 
         List<CourseInstance> courseInstance = this.courseInstanceRepository.findAll();
@@ -181,6 +221,7 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
     }
 
     @Override
+    @CacheEvict(value = COURSE_INSTANCE, allEntries = true)
     public void deleteInstancesByCourseId(Long courseId) {
 
         List<CourseInstance> courseInstance = this.courseInstanceRepository.findByCourseId(courseId);
