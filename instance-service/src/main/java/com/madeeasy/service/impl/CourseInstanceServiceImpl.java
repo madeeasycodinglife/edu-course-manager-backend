@@ -138,7 +138,7 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
     }
 
     @Override
-    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester")
+    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester", unless = "#result == null")
     public List<CourseInstanceResponseDTO> getInstancesByYearAndSemester(int year, int semester) {
         List<CourseInstance> courseInstance = this.courseInstanceRepository.findByYearAndSemester(year, semester);
 
@@ -158,7 +158,7 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
 
 
     @Override
-    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId")
+    @Cacheable(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId", unless = "#result == null")
     public CourseInstanceResponseDTO getInstanceByYearSemesterAndCourseId(int year, int semester, Long courseId) {
 
         CourseInstance courseInstance = this.courseInstanceRepository
