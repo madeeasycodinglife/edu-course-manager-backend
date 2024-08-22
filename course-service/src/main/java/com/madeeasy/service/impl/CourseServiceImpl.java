@@ -174,7 +174,7 @@ public class CourseServiceImpl implements CourseService {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
                 logger.error("Course instance not found for course ID: {}", id);
                 /**
-                 * Here i am assuming that the course instance note created yet.
+                 * Here i am assuming that the course instance not created yet.
                  */
                 // Proceed with the deletion of the course from the primary database
                 courseRepository.deleteById(id);
