@@ -21,6 +21,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -42,6 +43,7 @@ public class UserServiceImpl implements UserService {
     private final CacheManager cacheManager;
     private final UserRepository userRepository;
     private final HttpServletRequest httpServletRequest;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Cacheable(value = USER, key = "#root.methodName", unless = "#result == null")
@@ -64,11 +66,18 @@ public class UserServiceImpl implements UserService {
             @CacheEvict(value = USER, key = "'getAllUsers'")
     })
     public UserAuthResponseDTO createUser(UserRequestDTO user) {
+        String rawOrEncodedPassword = user.getPassword();
+
+        // Check if the password is already a valid bcrypt hash
+        if (!passwordEncoder.matches(rawOrEncodedPassword, rawOrEncodedPassword)) {
+            // If not, encrypt it
+            rawOrEncodedPassword = passwordEncoder.encode(rawOrEncodedPassword);
+        }
         User userEntity = User.builder()
                 .id(UUID.randomUUID().toString())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
-                .password(user.getPassword())
+                .password(rawOrEncodedPassword)
                 .phone(user.getPhone())
                 .roles(user.getRoles().stream().map(Role::valueOf).toList())
                 .build();
