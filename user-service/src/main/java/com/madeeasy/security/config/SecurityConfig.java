@@ -25,8 +25,8 @@ import java.util.List;
 @Slf4j
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -43,7 +43,7 @@ public class SecurityConfig {
                         HttpMethod method = HttpMethod.valueOf(config.getMethod().toUpperCase());
 
                         if (config.getRoles().isEmpty()) {
-                          authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
+                            authorizeRequests.requestMatchers(method, config.getPath()).permitAll();
                         } else {
                             // Configure role-based access
                             String[] roles = config.getRoles().stream()

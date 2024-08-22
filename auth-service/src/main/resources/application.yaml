@@ -1,122 +1,22 @@
 server:
   port: 8083
-
 spring:
+  profiles:
+    active:
+      - dev
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  cloud:
+    config:
+      label: main
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 2000
+        multiplier: 1.5
+  main:
+    allow-bean-definition-overriding: true
+
   application:
     name: auth-service
-  output:
-    ansi:
-      enabled: ALWAYS
-  threads:
-    virtual:
-      enabled: true
-
-  datasource:
-    url: jdbc:h2:mem:auth-service
-    username: sa
-    password: sa
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-  h2:
-    console:
-      enabled: true
-
-  mvc:
-    throw-exception-if-no-handler-found: true
-  web:
-    resources:
-      add-mappings: false
-  cache:
-    type: redis
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1
-security:
-  authorization:
-    paths:
-      - path: /auth-service/sign-up
-        method: POST
-        roles: [ ]
-      - path: /auth-service/sign-in
-        method: POST
-        roles: [ ]
-      - path: /auth-service/log-out
-        method: POST
-        roles: [ ]
-      - path: /auth-service/validate-access-token/**
-        method: POST
-        roles: [ ]
-      - path: /auth-service/refresh-token/**
-        method: POST
-        roles: [ ]
-      - path: /auth-service/partial-update/**
-        method: PATCH
-        roles:
-          - ROLE_ADMIN
-          - ROLE_USER
-
-
-
-
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    registry-fetch-interval-seconds: 2
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 3
-    lease-expiration-duration-in-seconds: 5
-
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  health:
-    circuitbreakers:
-      enabled: true  #To show Circuit Breaker status in /health endpoint.
-  endpoint:
-    health:
-      show-details: ALWAYS  #To show all details in /health endpoint.
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: http://localhost:9411/api/v2/spans
-
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      myCircuitBreaker:
-        registerHealthIndicator: true
-        failureRateThreshold: 20
-        minimumNumberOfCalls: 5
-        slidingWindowSize: 10
-        waitDurationInOpenState: 5s
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        slidingWindowType: COUNT_BASED
-
-  retry:
-    instances:
-      myRetry:
-        registerHealthIndicator: true
-        retryCount: 3
-        waitDuration: 2s
-

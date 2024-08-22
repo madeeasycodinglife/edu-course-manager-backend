@@ -1,162 +1,22 @@
 server:
   port: 8080
-
 spring:
+  profiles:
+    active:
+      - dev
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  cloud:
+    config:
+      label: main
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 2000
+        multiplier: 1.5
+  main:
+    allow-bean-definition-overriding: true
+
   application:
     name: spring-cloud-gateway
-  cloud:
-    gateway:
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowed-origins: "http://localhost:5173"
-            allowed-methods: "*"
-            allowed-headers: "*"
-            allow-credentials: true
-
-      discovery:
-        locator:
-          enabled: true
-
-      routes:
-
-        - id: course-service
-          uri: lb://course-service
-          predicates:
-            - Path=/api/courses/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: fault-service
-                fallbackUri: forward:/fallback/course-service
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter:
-                  replenishRate: 50  # Number of tokens generated per second
-                  burstCapacity: 100  # Maximum number of tokens
-                  requestedTokens: 1  # Number of tokens required per request
-                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
-
-
-        - id: course-instance-service
-          uri: lb://course-instance-service
-          predicates:
-            - Path=/api/instances/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: fault-service
-                fallbackUri: forward:/fallback/instance-service
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter:
-                  replenishRate: 50  # Number of tokens generated per second
-                  burstCapacity: 100  # Maximum number of tokens
-                  requestedTokens: 1  # Number of tokens required per request
-                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
-
-
-        - id: auth-service
-          uri: lb://auth-service
-          predicates:
-            - Path=/auth-service/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: fault-service
-                fallbackUri: forward:/fallback/auth-service
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter:
-                  replenishRate: 50  # Number of tokens generated per second
-                  burstCapacity: 100  # Maximum number of tokens
-                  requestedTokens: 1  # Number of tokens required per request
-                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
-
-
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/user-service/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: fault-service
-                fallbackUri: forward:/fallback/user-service
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter:
-                  replenishRate: 50  # Number of tokens generated per second
-                  burstCapacity: 100  # Maximum number of tokens
-                  requestedTokens: 1  # Number of tokens required per request
-                key-resolver: "#{@ipKeyResolver}"  # key resolver to limit by IP address
-
-
-  output:
-    ansi:
-      enabled: ALWAYS
-
-
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  health:
-    circuitbreakers:
-      enabled: true #To show Circuit Breaker status in /health endpoint.
-  endpoint:
-    health:
-      show-details: ALWAYS  #To show all details in /health endpoint.
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: http://localhost:9411/api/v2/spans
-
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      fault-service:
-        registerHealthIndicator: true
-        failureRateThreshold: 50
-        minimumNumberOfCalls: 5
-        slidingWindowSize: 10
-        waitDurationInOpenState: 10000
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        slidingWindowType: COUNT_BASED
-
-
-  timelimiter:
-    instances:
-      fault-service:
-        timeoutDuration: 15s
-
-
-
-
-
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    registry-fetch-interval-seconds: 5
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 10  # Increase if network is slow
-    lease-expiration-duration-in-seconds: 30  # Increase expiration duration
-
-
-
-logging:
-  level:
-    org.springframework.cloud.gateway: INFO
-    org.springframework.web: INFO
-    org.springframework.boot: INFO

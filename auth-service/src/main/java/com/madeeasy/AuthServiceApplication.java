@@ -20,9 +20,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 
-@SpringBootApplication
-@EnableDiscoveryClient
 @EnableCaching
+@EnableDiscoveryClient
+@SpringBootApplication
 public class AuthServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(AuthServiceApplication.class, args);

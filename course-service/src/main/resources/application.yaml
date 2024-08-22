@@ -1,119 +1,22 @@
-spring:
-  application:
-    name: course-service
-
-  output:
-    ansi:
-      enabled: ALWAYS
-  threads:
-    virtual:
-      enabled: true
-  main:
-    allow-circular-references: true
-  datasource:
-    url: jdbc:h2:mem:course-service
-    username: sa
-    password: sa
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    show-sql: true
-  h2:
-    console:
-      path: /h2-console
-      enabled: true
-  mvc:
-    throw-exception-if-no-handler-found: true
-  web:
-    resources:
-      add-mappings: false
-  cache:
-    type: redis
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      lettuce:
-        pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1
-
-
-security:
-  authorization:
-    paths:
-      - path: /api/courses
-        method: GET
-        roles: [ ]
-      - path: /api/courses/**
-        method: GET
-        roles: [ ]
-      - path: /api/courses/code/**
-        method: GET
-        roles: [ ]
-      - path: /api/courses
-        method: POST
-        roles:
-          - ROLE_ADMIN
-      - path: /api/courses/**
-        method: DELETE
-        roles:
-          - ROLE_ADMIN
 server:
   port: 8081
+spring:
+  profiles:
+    active:
+      - dev
+  config:
+    import: optional:configserver:http://localhost:8888
 
+  cloud:
+    config:
+      label: main
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 2000
+        multiplier: 1.5
+  main:
+    allow-bean-definition-overriding: true
 
-eureka:
-  client:
-    register-with-eureka: true
-    fetch-registry: true
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-    registry-fetch-interval-seconds: 2
-  instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 2
-    lease-expiration-duration-in-seconds: 5
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-  health:
-    circuitbreakers:
-      enabled: true #To show Circuit Breaker status in /health endpoint.
-  endpoint:
-    health:
-      show-details: ALWAYS  #To show all details in /health endpoint.
-  tracing:
-    enabled: true
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: http://localhost:9411/api/v2/spans
-
-resilience4j:
-  circuitbreaker:
-    instances:
-      myCircuitBreaker:
-        registerHealthIndicator: true
-        failureRateThreshold: 20
-        minimumNumberOfCalls: 5
-        slidingWindowSize: 10
-        waitDurationInOpenState: 5s
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        slidingWindowType: COUNT_BASED
-
-  retry:
-    instances:
-      myRetry:
-        registerHealthIndicator: true
-        retryCount: 3
-        waitDuration: 2s
-
+  application:
+    name: course-service
