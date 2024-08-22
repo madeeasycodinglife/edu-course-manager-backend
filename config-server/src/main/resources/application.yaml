@@ -1,0 +1,70 @@
+server:
+  port: 8888
+
+spring:
+  output:
+    ansi:
+      enabled: ALWAYS
+
+
+  threads:
+    virtual:
+      enabled: true
+
+
+  application:
+    name: config-server
+
+
+
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/madeeasycodinglife/edu-course-manager-config.git
+          skip-ssl-validation: true
+          clone-on-start: true
+          default-label: main
+          search-paths:
+            - configuration
+      discovery:
+        enabled: true
+
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+  endpoint:
+    health:
+      show-details: ALWAYS  #To show all details in /health endpoint.
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 2
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 3
+    lease-expiration-duration-in-seconds: 5
+
+
+
+# http://localhost:8888/user-service-dev.yml
+# http://localhost:8888/spring-cloud-gateway-dev.yml
+# http://localhost:8888/course-service-dev.yml
+# http://localhost:8888/auth-service-dev.yml
+# http://localhost:8888/user-service-dev.yml
+# http://localhost:8888/course-instance-service-dev.yml
