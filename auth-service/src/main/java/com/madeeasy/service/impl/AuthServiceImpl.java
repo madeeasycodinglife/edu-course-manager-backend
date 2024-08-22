@@ -147,6 +147,12 @@ public class AuthServiceImpl implements AuthService {
 
                 tokenRepository.save(token);
 
+                // Perform cache eviction manually
+                Cache cache = cacheManager.getCache(AUTH);
+                assert cache != null;
+                cache.evict(user.getEmail() + ":accessToken");
+                cache.evict(user.getEmail() + ":refreshToken");
+
                 return AuthResponse.builder()
                         .accessToken(accessToken)
                         .refreshToken(refreshToken)
@@ -263,14 +269,10 @@ public class AuthServiceImpl implements AuthService {
 
         Token token = tokenRepository.findByToken(accessToken).orElseThrow(() -> new TokenException("Token Not found"));
 
-        try {
-            if (token.isExpired() && token.isRevoked()) {
-                throw new TokenException("Token is expired or revoked");
-            }
-        } catch (TokenException e) {
-            System.out.println("Token Exception : " + e.getMessage());
+        if (token.isExpired() && token.isRevoked()) {
+            throw new TokenException("Token is expired or revoked");
         }
-        return true;
+        return !token.isExpired() && !token.isRevoked();
     }
 
     @Override
@@ -345,6 +347,11 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         tokenRepository.save(token);
+
+        // Perform cache eviction manually
+        Cache cache = cacheManager.getCache(AUTH);
+        assert cache != null;
+        cache.evict(user.getEmail() + ":accessToken");
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
