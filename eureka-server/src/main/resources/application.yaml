@@ -1,41 +1,43 @@
+server:
+  port: ${SERVER_PORT:8761}
+
 spring:
   application:
-    name: eureka-server
+    name: ${SPRING_APPLICATION_NAME:eureka-server}
   output:
     ansi:
       enabled: ALWAYS
   threads:
     virtual:
-      enabled: true
-server:
-  port: 8761
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:true}
 
 eureka:
   client:
-    register-with-eureka: false
-    fetch-registry: false
+    register-with-eureka: ${EUREKA_CLIENT_REGISTER_WITH_EUREKA:false}
+    fetch-registry: ${EUREKA_CLIENT_FETCH_REGISTRY:false}
 
   server:
-    enable-self-preservation: true
+    enable-self-preservation: ${EUREKA_SERVER_ENABLE_SELF_PRESERVATION:true}
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}
+
+
 
   tracing:
-    enabled: true
+    enabled: ${MANAGEMENT_TRACING_ENABLED:true}
     sampling:
-      probability: 1.0
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
+      endpoint: ${ZIPKIN_TRACING_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 logging:
   level:
-    root: info  # Set the global logging level to TRACE
-    com.netflix.discovery: info  # Log for Eureka Discovery
-    com.netflix.eureka: info  # Log for Eureka Server
-    org.springframework.cloud.netflix.eureka.server: info  # Log for Eureka Server components
-
+    root: ${LOGGING_LEVEL_ROOT:info}
+    com.netflix.discovery: ${LOGGING_LEVEL_NETFLIX_DISCOVERY:info}
+    com.netflix.eureka: ${LOGGING_LEVEL_NETFLIX_EUREKA:info}
+    org.springframework.cloud.netflix.eureka.server: ${LOGGING_LEVEL_SPRING_CLOUD_NETFLIX_EUREKA_SERVER:info}

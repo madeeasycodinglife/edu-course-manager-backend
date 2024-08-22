@@ -1,65 +1,58 @@
 server:
-  port: 8888
+  port: ${SERVER_PORT:8888}  # Default port is 8888, but can be overridden via environment variable
 
 spring:
   output:
     ansi:
       enabled: ALWAYS
 
-
   threads:
     virtual:
       enabled: true
 
-
   application:
-    name: config-server
-
-
+    name: ${SPRING_APPLICATION_NAME:config-server}  # Configurable application name
 
   cloud:
     config:
       server:
         git:
-          uri: https://github.com/madeeasycodinglife/edu-course-manager-config.git
-          skip-ssl-validation: true
-          clone-on-start: true
-          default-label: main
+          uri: ${CONFIG_SERVER_GIT_URI:https://github.com/madeeasycodinglife/edu-course-manager-config.git}
+          skip-ssl-validation: ${CONFIG_SERVER_SKIP_SSL_VALIDATION:true}
+          clone-on-start: ${CONFIG_SERVER_CLONE_ON_START:true}
+          default-label: ${CONFIG_SERVER_DEFAULT_LABEL:main}
           search-paths:
-            - configuration
+            - ${CONFIG_SERVER_SEARCH_PATHS:configuration}
       discovery:
-        enabled: true
-
+        enabled: ${SPRING_CLOUD_DISCOVERY_ENABLED:true}
 
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}
 
   endpoint:
     health:
-      show-details: ALWAYS  #To show all details in /health endpoint.
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:ALWAYS}  # To show all details in /health endpoint.
   tracing:
-    enabled: true
+    enabled: ${MANAGEMENT_TRACING_ENABLED:true}
     sampling:
-      probability: 1.0
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
-
+      endpoint: ${ZIPKIN_TRACING_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
-    registry-fetch-interval-seconds: 2
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
+    registry-fetch-interval-seconds: ${EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS:2}
   instance:
-    prefer-ip-address: true
-    lease-renewal-interval-in-seconds: 3
-    lease-expiration-duration-in-seconds: 5
-
+    prefer-ip-address: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:true}
+    lease-renewal-interval-in-seconds: ${EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS:3}
+    lease-expiration-duration-in-seconds: ${EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS:5}
 
 
 # http://localhost:8888/user-service-dev.yml

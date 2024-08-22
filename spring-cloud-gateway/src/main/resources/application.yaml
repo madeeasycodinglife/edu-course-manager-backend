@@ -1,22 +1,24 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+
 spring:
   profiles:
     active:
-      - dev
+      - ${SPRING_PROFILES_ACTIVE:prod}
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}
 
   cloud:
     config:
-      label: main
-      fail-fast: true
+      label: ${SPRING_CLOUD_CONFIG_LABEL:main}
+      fail-fast: ${SPRING_CLOUD_CONFIG_FAILFAST:true}
       retry:
-        max-attempts: 6
-        initial-interval: 2000
-        multiplier: 1.5
+        max-attempts: ${SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS:6}
+        initial-interval: ${SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL:2000}
+        multiplier: ${SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER:1.5}
+
   main:
-    allow-bean-definition-overriding: true
+    allow-bean-definition-overriding: ${SPRING_MAIN_ALLOW_BEAN_DEFINITION_OVERRIDING:true}
 
   application:
-    name: spring-cloud-gateway
+    name: ${SPRING_APPLICATION_NAME:spring-cloud-gateway}
