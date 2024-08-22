@@ -31,7 +31,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info}
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:*}
 
   endpoint:
     health:
@@ -61,3 +61,7 @@ eureka:
 # http://localhost:8888/auth-service-dev.yml
 # http://localhost:8888/user-service-dev.yml
 # http://localhost:8888/course-instance-service-dev.yml
+
+
+# Refreshing Configuration Across Microservices
+# POST http://localhost:8888/actuator/busrefresh

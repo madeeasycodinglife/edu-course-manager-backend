@@ -15,6 +15,7 @@ spring:
       retry:
         max-attempts: ${SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS:6}
         initial-interval: ${SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL:2000}
+        max-interval: ${SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL:10000}  # Ensure this is greater than initial-interval
         multiplier: ${SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER:1.5}
 
   application:
