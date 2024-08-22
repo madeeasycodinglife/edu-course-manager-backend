@@ -173,7 +173,12 @@ public class CourseServiceImpl implements CourseService {
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
                 logger.error("Course instance not found for course ID: {}", id);
-                return new ResponseDTO("Course instance not found or Not created yet for course ID: " + id, HttpStatus.NOT_FOUND);
+                /**
+                 * Here i am assuming that the course instance note created yet.
+                 */
+                // Proceed with the deletion of the course from the primary database
+                courseRepository.deleteById(id);
+                return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
             } else if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
                 logger.error("Bad request while deleting course instance: {}", e.getMessage());
                 return new ResponseDTO("Bad request while deleting course instance: " + e.getMessage(), HttpStatus.BAD_REQUEST);
