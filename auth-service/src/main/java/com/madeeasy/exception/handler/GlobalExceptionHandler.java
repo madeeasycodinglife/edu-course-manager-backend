@@ -158,7 +158,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleTokenException(TokenException exception) {
         System.out.println("Inside tokenException handler: " + exception);
         Map<String, Object> responseBody = Map.of(
-                "status", HttpStatus.NOT_FOUND,
+                "status", HttpStatus.BAD_REQUEST,
                 "message", exception.getMessage()
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseBody);
