@@ -37,7 +37,7 @@
         <url/>
     </scm>
     <properties>
-        <java.version>22</java.version>
+        <java.version>21</java.version>
         <spring-cloud.version>2023.0.3</spring-cloud.version>
     </properties>
     <dependencies>
@@ -129,7 +129,7 @@
                 <version>3.4.3</version>
                 <configuration>
                     <from>
-                        <image>eclipse-temurin:22-jre</image>
+                        <image>eclipse-temurin:21-jre-alpine</image> <!-- Use a base image compatible with Java 22 -->
                     </from>
                     <to>
                         <image>registry.hub.docker.com/pabitrabera2001/${project.artifactId}</image>
