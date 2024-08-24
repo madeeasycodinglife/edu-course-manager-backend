@@ -135,7 +135,7 @@ Below are the datasource URLs for each service:
 
 1. Start the microservices using Docker or your preferred method.
 2. Open a web browser.
-3. Navigate to the `/h2-console` endpoint of the desired service, for example, `http://localhost:8081/h2-console` for the `auth-service`.
+3. Navigate to the `/h2-console` endpoint of the desired service, for example, `http://localhost:8083/h2-console` for the `auth-service`.
 4. Enter the credentials (`sa`/`sa`).
 5. Use the corresponding datasource URL from the list above to connect to the database.
 
