@@ -157,5 +157,5 @@ Below are the datasource URLs for each service:
 you can use Docker Compose to run all services together:
 
 ```bash
-docker-compose up --build
+docker-compose up
 
