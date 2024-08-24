@@ -24,9 +24,6 @@ spring:
           search-paths:
             - ${CONFIG_SERVER_SEARCH_PATHS:configuration}
 
-
-      discovery:
-        enabled: ${SPRING_CLOUD_DISCOVERY_ENABLED:true}
   kafka:
     bootstrap-servers:
       - ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
