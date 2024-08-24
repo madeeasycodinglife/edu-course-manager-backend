@@ -1,4 +1,4 @@
-# Microservices API Documentation IIT-Bombay assignment
+# Microservices API Documentation IIT-Bombay Assignment
 
 This repository contains various microservices with their respective APIs for authentication, user management, course management, and instance management. The services are designed with Spring Boot and secured using JWT tokens.
 
