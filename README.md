@@ -145,12 +145,52 @@ Below are the datasource URLs for each service:
 - Ensure that the service is up and running before accessing the H2 console.
 
 ---
+You're absolutely correct! Redis in your setup is used for caching (leveraged through annotations like `@Cacheable` and `@CacheEvict`), while Kafka is employed for propagating configuration change events using Spring Cloud Bus. I apologize for the confusion earlier. Here’s the revised explanation:
+
+---
 
 ## Prerequisites
 
-- Java 17+
-- Maven 3.8+
-- Docker (for containerization optional if you use docker-compose file then use Docker)
+- **Java 17+**: The application is built using Java 17, so you need at least this version installed.
+
+- **Maven 3.8+**: Maven is required to manage project dependencies and build the application.
+
+- **Docker**:
+    - **For containerization (optional)**: If you plan to run your application and related services (like Zookeeper, Kafka, Redis, Zipkin) in containers.
+    - **Docker Compose (optional)**: If you use a `docker-compose.yml` file to manage and orchestrate multiple services, Docker Compose is needed.
+
+- **Zookeeper**:
+    - Required for managing and coordinating Kafka clusters. Zookeeper ensures that the Kafka nodes are in sync.
+
+- **Kafka**:
+    - Used as a message broker with Spring Cloud Bus to propagate configuration changes across microservices in real-time.
+
+- **Redis**:
+    - Used as a caching layer in your Spring Boot application, typically integrated with Spring's caching abstraction using annotations like `@Cacheable` and `@CacheEvict`.
+
+- **Zipkin**:
+    - A distributed tracing system that helps gather timing data to troubleshoot latency problems in microservices architectures.
+
+---
+
+### Role of Each Component:
+
+1. **Redis**:
+    - Acts as a caching layer to store frequently accessed data, improving the performance of your application. Spring Boot's caching abstraction integrates Redis easily using annotations like `@Cacheable`, `@CacheEvict`, etc.
+
+2. **Kafka** (with **Zookeeper**):
+    - Kafka, orchestrated by Zookeeper, is used with Spring Cloud Bus to handle the broadcasting of configuration changes. This ensures that all microservices connected to the Config Server are updated with the latest configurations from your Git repository in real-time.
+
+3. **Zipkin**:
+    - Provides distributed tracing to monitor and troubleshoot latency issues across your microservices, giving you insights into the performance of your entire system.
+    - http://localhost:9411/zipkin/       -> this the zipkin endpoint.
+These tools work together to ensure your Spring Boot microservices architecture is efficient, scalable, and easy to manage.
+
+---
+
+> **Note:** I have not yet added a Docker-Compose file for this project as I am still in the process of learning how to run microservices in a Docker environment using Docker-Compose. However, if you are familiar with Docker, you can create a Docker-Compose file based on this project and run it successfully. The project has been thoroughly tested and works perfectly without any errors outside of a Docker environment. Once I complete my learning, I will update this repository with the Docker-Compose file.
+
+---
 
 ## Running the Services
 
