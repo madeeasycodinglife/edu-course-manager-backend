@@ -11,12 +11,15 @@ spring:
   cloud:
     config:
       label: ${SPRING_CLOUD_CONFIG_LABEL:main}
-      fail-fast: ${SPRING_CLOUD_CONFIG_FAILFAST:true}
+      fail-fast: ${SPRING_CLOUD_CONFIG_FAILFAST:false}
+      profile: ${SPRING_CLOUD_CONFIG_PROFILE:prod}
       retry:
         max-attempts: ${SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS:6}
         initial-interval: ${SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL:2000}
         max-interval: ${SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL:10000}  # Ensure this is greater than initial-interval
         multiplier: ${SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER:1.5}
+      request-connect-timeout: ${SPRING_CLOUD_CONFIG_REQUEST_CONNECT_TIMEOUT:15000}
+      request-read-timeout: ${SPRING_CLOUD_CONFIG_REQUEST_READ_TIMEOUT:15000}
 
   main:
     allow-bean-definition-overriding: ${SPRING_MAIN_ALLOW_BEAN_DEFINITION_OVERRIDING:true}

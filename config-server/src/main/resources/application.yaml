@@ -23,6 +23,8 @@ spring:
           default-label: ${CONFIG_SERVER_DEFAULT_LABEL:main}
           search-paths:
             - ${CONFIG_SERVER_SEARCH_PATHS:configuration}
+
+
       discovery:
         enabled: ${SPRING_CLOUD_DISCOVERY_ENABLED:true}
   kafka:

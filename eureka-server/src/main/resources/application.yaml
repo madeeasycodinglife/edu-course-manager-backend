@@ -17,14 +17,24 @@ eureka:
     fetch-registry: ${EUREKA_CLIENT_FETCH_REGISTRY:false}
 
   server:
+    # Whether Eureka Server should self-preserve during network partitions.
     enable-self-preservation: ${EUREKA_SERVER_ENABLE_SELF_PRESERVATION:true}
+
+    # Time in milliseconds for reading from peer nodes.
+    peer-node-read-timeout-ms: ${EUREKA_SERVER_PEER_NODE_READ_TIMEOUT_MS:60000} # Set to 60 seconds; adjust as needed based on network latency and load.
+
+    # Time in milliseconds for establishing a connection with peer nodes.
+    peer-node-connect-timeout-ms: ${EUREKA_SERVER_PEER_NODE_CONNECT_TIMEOUT_MS:8000} # Set to 8 seconds; adjust based on network conditions and expected response times.
+
+    # Time in seconds for keeping idle connections to peer nodes open.
+    peer-node-connection-idle-timeout-seconds: ${EUREKA_SERVER_PEER_NODE_CONNECTION_IDLE_TIMEOUT_SECONDS:60} # Set to 60 seconds; adjust based on connection usage patterns and resource constraints.
+
 
 management:
   endpoints:
     web:
       exposure:
         include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:*}
-
 
 
   tracing:
