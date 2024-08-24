@@ -1,5 +1,7 @@
 package com.madeeasy.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.madeeasy.dto.request.CourseRequestDTO;
 import com.madeeasy.dto.response.CourseResponseDTO;
 import com.madeeasy.dto.response.ResponseDTO;
@@ -155,41 +157,15 @@ public class CourseServiceImpl implements CourseService {
 
         logger.info("Calling course instance service to delete course instance with ID: {}", id);
 
-        try {
-            // Make the DELETE request to the course instance service
-            ResponseEntity<String> response = restTemplate.exchange(courseServiceUrl, HttpMethod.DELETE, requestEntity, String.class);
+        // Make the DELETE request to the course instance service
+        ResponseEntity<String> response = restTemplate.exchange(courseServiceUrl, HttpMethod.DELETE, requestEntity, String.class);
 
-            // Check if the response status is 200 OK
-            if (response.getStatusCode().is2xxSuccessful()) {
-                // Proceed with the deletion of the course from the primary database
-                courseRepository.deleteById(id);
+        // Proceed with the deletion of the course from the primary database
+        courseRepository.deleteById(id);
 
-                logger.info("Course instance deleted successfully for course ID: {}", id);
-                return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
-            } else {
-                logger.error("Failed to delete course instance for course ID: {}. Response status: {}", id, response.getStatusCode());
-                return new ResponseDTO("Failed to delete course instance for course ID: " + id, HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                logger.error("Course instance not found for course ID: {}", id);
-                /**
-                 * Here i am assuming that the course instance not created yet.
-                 */
-                // Proceed with the deletion of the course from the primary database
-                courseRepository.deleteById(id);
-                return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
-            } else if (e.getStatusCode() == HttpStatus.BAD_REQUEST) {
-                logger.error("Bad request while deleting course instance: {}", e.getMessage());
-                return new ResponseDTO("Bad request while deleting course instance: " + e.getMessage(), HttpStatus.BAD_REQUEST);
-            } else {
-                logger.error("An error occurred while trying to delete course instance: {}", e.getMessage());
-                return new ResponseDTO("An error occurred while trying to delete course instance: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-            }
-        } catch (Exception e) {
-            logger.error("An unexpected error occurred: {}", e.getMessage());
-            return new ResponseDTO("An unexpected error occurred: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        logger.info("Course instance deleted successfully for course ID: {}", id);
+
+        return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
     }
 
     private HttpEntity<String> createHttpEntityWithToken(String authorizationHeader) {
@@ -203,11 +179,64 @@ public class CourseServiceImpl implements CourseService {
 
     public ResponseDTO fallbackDeleteCourse(Long id, Throwable t) {
         log.error("message : {}", t.getMessage());
+
+        // Check if the throwable is an instance of HttpClientErrorException
+        if (t instanceof HttpClientErrorException exception) {
+            if (exception.getStatusCode().equals(HttpStatus.BAD_REQUEST)) {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+
+                    return ResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            } else {
+                try {
+                    // Parse the response body as JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(exception.getResponseBodyAsString());
+
+                    // Extract specific fields from the JSON, such as 'message' and 'status'
+                    String errorMessage = jsonNode.path("message").asText();
+                    String errorStatus = jsonNode.path("status").asText();
+
+                    // Log the extracted information
+                    log.error("message : {} , status : {}", errorMessage, errorStatus);
+                    if (((HttpClientErrorException) t).getStatusCode() == HttpStatus.NOT_FOUND) {
+                        // Handle the case where the course instance was not found
+                        courseRepository.deleteById(id);
+                        return new ResponseDTO("Course with ID " + id + " has been successfully deleted.", HttpStatus.OK);
+                    }
+                    return ResponseDTO.builder()
+                            .status(HttpStatus.BAD_REQUEST)
+                            .message("Bad request : " + errorMessage)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to parse the error response", e);
+                }
+            }
+        }
+
+        // Fallback response if the exception is not HttpClientErrorException or any other case
         return ResponseDTO.builder()
+                .message("Sorry !! Course Deletion failed as Course Instance Service is unavailable. Please try again later.")
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .message("Sorry !! Course deletion failed as Course Instance Service is unavailable. Please try again later.")
                 .build();
     }
+
+
 }
 
 
