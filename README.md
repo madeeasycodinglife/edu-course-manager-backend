@@ -98,6 +98,54 @@ Handles configuration updates and propagates changes across services.
 - Roles are dynamically managed and can be updated by modifying the configuration file in the GitHub repository. After updating roles, you can propagate the changes across all services by hitting the `POST /actuator/busrefresh` endpoint on the Config Server.
 
 
+To include the information about accessing the H2 databases in the `README.md` file, you can add a dedicated section explaining how to access each service's H2 database through the `h2-console`, along with the default credentials and datasource URLs. Here's how you can update your `README.md` file:
+
+---
+
+## Accessing H2 Databases
+
+Each microservice in this project is configured with an in-memory H2 database that can be accessed via a web interface. The H2 database can be accessed through the `/h2-console` endpoint of each service.
+
+### Default Credentials
+
+- **Username**: `sa`
+- **Password**: `sa`
+
+### H2 Database URLs
+
+Below are the datasource URLs for each service:
+
+1. **Auth Service**
+    - **Datasource URL**: `jdbc:h2:mem:auth-service`
+    - **Access Console**: [http://localhost:<auth-service-port>/h2-console](http://localhost:<auth-service-port>/h2-console)
+
+2. **Instance Service**
+    - **Datasource URL**: `jdbc:h2:mem:instance-service`
+    - **Access Console**: [http://localhost:<instance-service-port>/h2-console](http://localhost:<instance-service-port>/h2-console)
+
+3. **Course Service**
+    - **Datasource URL**: `jdbc:h2:mem:course-service`
+    - **Access Console**: [http://localhost:<course-service-port>/h2-console](http://localhost:<course-service-port>/h2-console)
+
+4. **User Service**
+    - **Datasource URL**: `jdbc:h2:mem:user-service`
+    - **Access Console**: [http://localhost:<user-service-port>/h2-console](http://localhost:<user-service-port>/h2-console)
+
+### How to Access the H2 Console
+
+1. Start the microservices using Docker or your preferred method.
+2. Open a web browser.
+3. Navigate to the `/h2-console` endpoint of the desired service, for example, `http://localhost:8081/h2-console` for the `auth-service`.
+4. Enter the credentials (`sa`/`sa`).
+5. Use the corresponding datasource URL from the list above to connect to the database.
+
+### Note
+
+- Replace `<auth-service-port>`, `<instance-service-port>`, `<course-service-port>`, and `<user-service-port>` with the actual ports on which the respective services are running.
+- Ensure that the service is up and running before accessing the H2 console.
+
+---
+
 ## Prerequisites
 
 - Java 17+
