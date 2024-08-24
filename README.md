@@ -98,7 +98,6 @@ Handles configuration updates and propagates changes across services.
 - Roles are dynamically managed and can be updated by modifying the configuration file in the GitHub repository. After updating roles, you can propagate the changes across all services by hitting the `POST /actuator/busrefresh` endpoint on the Config Server.
 
 
-To include the information about accessing the H2 databases in the `README.md` file, you can add a dedicated section explaining how to access each service's H2 database through the `h2-console`, along with the default credentials and datasource URLs. Here's how you can update your `README.md` file:
 
 ---
 
