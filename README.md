@@ -144,13 +144,10 @@ Below are the datasource URLs for each service:
 - Ensure that the service is up and running before accessing the H2 console.
 
 ---
-You're absolutely correct! Redis in your setup is used for caching (leveraged through annotations like `@Cacheable` and `@CacheEvict`), while Kafka is employed for propagating configuration change events using Spring Cloud Bus. I apologize for the confusion earlier. Here’s the revised explanation:
-
----
 
 ## Prerequisites
 
-- **Java 17+**: The application is built using Java 17, so you need at least this version installed.
+- **Java 21**: The application is built using Java 21, so you need at least this version installed.
 
 - **Maven 3.8+**: Maven is required to manage project dependencies and build the application.
 
