@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -27,5 +28,5 @@ public class User implements Serializable {
     private String phone;
     @ElementCollection(targetClass = Role.class)
     @Enumerated(EnumType.STRING)
-    private List<Role> roles;
+    private List<Role> roles = new ArrayList<>();
 }
