@@ -129,7 +129,7 @@
                 <version>3.4.3</version>
                 <configuration>
                     <from>
-                        <image>eclipse-temurin:21-jre-alpine</image> <!-- Use a base image compatible with Java 22 -->
+                        <image>eclipse-temurin:21-jre-jammy</image> <!-- Use a base image compatible with Java 21 -->
                     </from>
                     <to>
                         <image>registry.hub.docker.com/pabitrabera2001/${project.artifactId}</image>
