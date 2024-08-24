@@ -117,7 +117,7 @@ Below are the datasource URLs for each service:
 
 1. **Auth Service**
     - **Datasource URL**: `jdbc:h2:mem:auth-service`
-    - **Access Console**: [http://localhost:<auth-service-port>/h2-console](http://localhost:<auth-service-port>/h2-console)
+    - **Access Console**: [http://localhost:<auth-service-port>/h2-console](http://localhost:8083/h2-console)
 
 2. **Instance Service**
     - **Datasource URL**: `jdbc:h2:mem:instance-service`
