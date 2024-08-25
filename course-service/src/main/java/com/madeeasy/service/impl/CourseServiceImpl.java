@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -135,7 +136,10 @@ public class CourseServiceImpl implements CourseService {
 
 
     @Override
-    @CacheEvict(value = COURSE, key = "#id")
+    @Caching(evict = {
+            @CacheEvict(value = COURSE, key = "#id"),
+            @CacheEvict(value = COURSE, key = "'getAllCourses'")
+    })
     @Retry(name = "myRetry", fallbackMethod = "fallbackDeleteCourse")
     @CircuitBreaker(name = "myCircuitBreaker", fallbackMethod = "fallbackDeleteCourse")
     public ResponseDTO deleteCourse(Long id) {
