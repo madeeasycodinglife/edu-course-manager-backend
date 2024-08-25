@@ -171,9 +171,10 @@ public class UserServiceImpl implements UserService {
                         .password(updatedUser.getPassword())
                         .phone(updatedUser.getPhone())
                         .roles(updatedUser.getRoles())
-                        .accessToken(authResponse.getAccessToken())
-                        .refreshToken(authResponse.getRefreshToken())
+                        .accessToken((userDetails.getEmail() != null || userDetails.getRoles() != null) ? authResponse.getAccessToken() : null)
+                        .refreshToken((userDetails.getEmail() != null || userDetails.getRoles() != null) ? authResponse.getRefreshToken() : null)
                         .build();
+
             } else {
                 // Log error and return appropriate response if the auth-service call fails
                 log.error("Failed to update user in auth-service for email: {}. Response status: {}", emailId, responseEntity.getStatusCode());
