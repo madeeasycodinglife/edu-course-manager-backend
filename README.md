@@ -42,8 +42,9 @@ Manages user details and profile updates.
 
 - **Get User Details**: `GET /user-service/{email}`
     - Requires Bearer Token in the Authorization header.
+
 - **Partial Update User**: `PATCH /user-service/partial-update/{email}`
-    - Request Body:
+    - **Request Body**:
       ```json
       {
         "fullName": "Pabitra Bera",
@@ -53,7 +54,43 @@ Manages user details and profile updates.
         "roles": ["ADMIN"]
       }
       ```
+    - **Important Notes**:
+        - **Email Update**: If the user's email is updated, a new access token and refresh token will be generated, and all previous tokens will be revoked.
+        - **Role Update**: If the user's roles are updated (e.g., by an admin), a new access token and refresh token will be generated, and all previous tokens will be revoked.
 
+    - **Response**:
+        - **If Email or Role is Updated**:
+          ```json
+          {
+              "id": "b3a771c2-24c7-4a79-9d05-9e7ece4f7415",
+              "fullName": "Pabitra Bera",
+              "email": "pabitra@gmail.com",
+              "password": "$2a$10$pePlh8Yj3jz5b5Ig5G9VWeLoull0C9KcOvQMS24kEdpFq2r4MOuJ2",
+              "phone": "8101187317",
+              "roles": [
+                  "ADMIN",
+                  "USER"
+              ],
+              "accessToken": "generated-access-token",
+              "refreshToken": "generated-refresh-token"
+          }
+          ```
+        - **If Neither Email Nor Role is Updated**:
+          ```json
+          {
+              "id": "b3a771c2-24c7-4a79-9d05-9e7ece4f7415",
+              "fullName": "Pabitra Bera",
+              "email": "pabitra@gmail.com",
+              "password": "$2a$10$pePlh8Yj3jz5b5Ig5G9VWeLoull0C9KcOvQMS24kEdpFq2r4MOuJ2",
+              "phone": "8101187317",
+              "roles": [
+                  "ADMIN",
+                  "USER"
+              ]
+          }
+          ```
+        - In the case where the email or roles are updated, the response includes the new `accessToken` and `refreshToken`. Otherwise, the response contains the updated user details without token information.
+    
 ### 3. Course Service
 Handles course creation and management.
 
