@@ -20,8 +20,8 @@ public class CourseInstanceRequestDTO {
     private Integer year;
 
     @NotNull(message = "semester cannot be null")
-    @Min(value = 1, message = "semester must be between 1 and 20")
-    @Max(value = 20, message = "semester must be between 1 and 20")
+    @Min(value = 1, message = "semester must be between 1 and 10")
+    @Max(value = 10, message = "semester must be between 1 and 10")
     private Integer semester;
 
     @NotNull(message = "courseId cannot be null")
