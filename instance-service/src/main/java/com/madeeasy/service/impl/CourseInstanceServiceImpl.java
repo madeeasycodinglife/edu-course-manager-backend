@@ -192,7 +192,10 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
      */
     @Override
     @Transactional
-    @CacheEvict(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId")
+    @Caching(evict = {
+            @CacheEvict(value = COURSE_INSTANCE, key = "#year + '-' + #semester"),
+            @CacheEvict(value = COURSE_INSTANCE, key = "#year + '-' + #semester + '-' + #courseId")
+    })
     public void deleteInstance(int year, int semester, Long courseId) {
         if (!this.courseInstanceRepository.existsByYearAndSemesterAndCourseId(year, semester, courseId)) {
             throw new CourseInstanceNotFoundException("Course instance not found for year " + year + " and semester " + semester + " and course id " + courseId);
