@@ -300,25 +300,32 @@ public class AuthServiceImpl implements AuthService {
         }
         User savedUser = userRepository.save(user);
 
-        revokeAllPreviousValidTokens(savedUser);
-        String accessToken = jwtUtils.generateAccessToken(savedUser.getEmail(), savedUser.getRole().stream().map(role -> role.name()).collect(Collectors.toList()));
-        String refreshToken = jwtUtils.generateRefreshToken(savedUser.getEmail(), savedUser.getRole().stream().map(role -> role.name()).collect(Collectors.toList()));
+        if (userRequest.getRoles() != null || userRequest.getEmail() != null) {
+            revokeAllPreviousValidTokens(savedUser);
+            String accessToken = jwtUtils.generateAccessToken(savedUser.getEmail(), savedUser.getRole().stream().map(role -> role.name()).collect(Collectors.toList()));
+            String refreshToken = jwtUtils.generateRefreshToken(savedUser.getEmail(), savedUser.getRole().stream().map(role -> role.name()).collect(Collectors.toList()));
 
 
-        Token token = Token.builder()
-                .id(UUID.randomUUID().toString())
-                .user(savedUser)
-                .token(accessToken)
-                .isRevoked(false)
-                .isExpired(false)
-                .tokenType(TokenType.BEARER)
-                .build();
+            Token token = Token.builder()
+                    .id(UUID.randomUUID().toString())
+                    .user(savedUser)
+                    .token(accessToken)
+                    .isRevoked(false)
+                    .isExpired(false)
+                    .tokenType(TokenType.BEARER)
+                    .build();
 
-        tokenRepository.save(token);
+            tokenRepository.save(token);
+
+            return AuthResponse.builder()
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        }
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .status(HttpStatus.OK)
+                .message("User updated successfully")
                 .build();
     }
 
