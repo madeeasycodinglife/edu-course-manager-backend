@@ -49,7 +49,14 @@ public class CourseInstanceServiceImpl implements CourseInstanceService {
 
         ResponseEntity<CourseResponseDTO> courseResponse = fetchCourse(courseServiceUrl, authorizationHeader);
 
-        // Course exists, proceed with creating the instance
+        CourseInstance foundCourseInstance = this.courseInstanceRepository.findByYearAndSemesterAndCourseId(instance.getYear(), instance.getSemester(), instance.getCourseId())
+                .orElse(null);
+        if (foundCourseInstance != null) {
+            return CourseInstanceResponseDTO.builder()
+                    .message("Course instance already exists for the given year and semester")
+                    .status(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
         CourseInstance courseInstance = CourseInstance.builder()
                 .year(instance.getYear())
                 .semester(instance.getSemester())
