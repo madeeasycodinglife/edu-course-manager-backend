@@ -51,7 +51,7 @@ Manages user details and profile updates.
         "email": "pabitra@gmail.com",
         "password": "Apabitra@123",
         "phone": "8101187317",
-        "roles": ["ADMIN"]
+        "roles": ["ADMIN","USER"]
       }
       ```
     - **Important Notes**:
