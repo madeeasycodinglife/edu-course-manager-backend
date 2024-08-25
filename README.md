@@ -83,10 +83,7 @@ Manages user details and profile updates.
               "email": "pabitra@gmail.com",
               "password": "$2a$10$pePlh8Yj3jz5b5Ig5G9VWeLoull0C9KcOvQMS24kEdpFq2r4MOuJ2",
               "phone": "8101187317",
-              "roles": [
-                  "ADMIN",
-                  "USER"
-              ]
+              "roles": ["ADMIN"]
           }
           ```
         - In the case where the email or roles are updated, the response includes the new `accessToken` and `refreshToken`. Otherwise, the response contains the updated user details without token information.
