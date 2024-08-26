@@ -218,10 +218,6 @@ These tools work together to ensure your Spring Boot microservices architecture 
 
 ---
 
-> **Note:** I have not yet added a Docker-Compose file for this project as I am still in the process of learning how to run microservices in a Docker environment using Docker-Compose. However, if you are familiar with Docker, you can create a Docker-Compose file based on this project and run it successfully. The project has been thoroughly tested and works perfectly without any errors outside of a Docker environment. Once I complete my learning, I will update this repository with the Docker-Compose file.
-
----
-
 ## Running the Services
 
 you can use Docker Compose to run all services together:
