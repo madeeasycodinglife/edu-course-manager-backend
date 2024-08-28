@@ -129,43 +129,44 @@ services:
       - microservices-network
 
   # Auth Service
-#  auth-service:
-#    image: pabitrabera2001/auth-service
-#    container_name: auth-service
-#    environment:
-#      - SERVER_PORT=8083
-#      - SPRING_DATA_REDIS_HOST=redis
-#      - SPRING_DATA_REDIS_PORT=6379
-#      - SPRING_KAFKA_BOOTSTRAP_SERVERS=PLAINTEXT://kafka:9092
-#      - CONFIG_SERVER_URI=http://config-server:8888
-#      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
-#    depends_on:
-#      zookeeper:
-#        condition: service_healthy
-#      kafka:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#      zipkin:
-#        condition: service_healthy
-#      eureka-server:
-#        condition: service_healthy
-#      config-server:
-#        condition: service_healthy
-#      spring-cloud-gateway:
-#        condition: service_healthy
-#    ports:
-#      - "8083:8083"
-#    restart: on-failure
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
-#      interval: 30s
-#      retries: 5
-#      start_period: 30s
-#      timeout: 10s
-#    networks:
-#      - microservices-network
+
+  auth-service:
+    image: pabitrabera2001/auth-service
+    container_name: auth-service
+    environment:
+      - SERVER_PORT=8083
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=PLAINTEXT://kafka:9092
+      - CONFIG_SERVER_URI=http://config-server:8888
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      zipkin:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      spring-cloud-gateway:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    networks:
+      - microservices-network
 
   # User Service
 
