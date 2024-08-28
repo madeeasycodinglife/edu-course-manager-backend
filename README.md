@@ -24,7 +24,7 @@ Handles user authentication, including sign-up, sign-in, token refresh, and logo
       ```json
       {
         "email": "pabitra@gmail.com",
-        "password": "Ap@123"
+        "password": "Apabitra@123"
       }
       ```
 - **Log-Out**: `POST /auth-service/log-out`
