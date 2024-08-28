@@ -2,6 +2,18 @@ version: '3.8'
 
 services:
 
+  # Docker Autoheal Service
+  autoheal:
+    image: willfarrell/autoheal
+    container_name: autoheal
+    restart: always
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - microservices-network
+
   # Zookeeper from Confluent
   zookeeper:
     image: confluentinc/cp-zookeeper
@@ -12,15 +24,17 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    restart: on-failure
+    restart: always
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
   # Kafka from Confluent
   kafka:
@@ -40,15 +54,18 @@ services:
         condition: service_healthy
     ports:
       - "9092:9092"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "9092"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
+
 
   # Redis
   redis:
@@ -56,15 +73,18 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
+
 
   # Zipkin
   zipkin:
@@ -72,9 +92,12 @@ services:
     container_name: zipkin
     ports:
       - "9411:9411"
-    restart: unless-stopped
+    restart: always
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
+
 
   # Eureka Server
   eureka-server:
@@ -88,15 +111,18 @@ services:
         condition: service_healthy
     ports:
       - "8761:8761"
-    restart: on-failure
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
+
 
   # Config Server
   config-server:
@@ -118,15 +144,17 @@ services:
         condition: service_healthy
     ports:
       - "8888:8888"
-    restart: on-failure
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
   # Auth Service
 
@@ -158,15 +186,17 @@ services:
         condition: service_healthy
     ports:
       - "8083:8083"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
   # User Service
 
@@ -198,15 +228,17 @@ services:
         condition: service_healthy
     ports:
       - "8084:8084"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
   # Course Service
 
@@ -238,15 +270,18 @@ services:
         condition: service_healthy
     ports:
       - "8081:8081"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
+
 
   # Instance Service
 
@@ -276,15 +311,17 @@ services:
         condition: service_healthy
     ports:
       - "8082:8082"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
   # Spring Cloud Gateway
   spring-cloud-gateway:
@@ -305,15 +342,17 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
-      retries: 5
-      start_period: 30s
+      retries: 15
+      start_period: 2m
       timeout: 10s
     networks:
       - microservices-network
+    labels:
+      - autoheal=true
 
 networks:
   microservices-network:
