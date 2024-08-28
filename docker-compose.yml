@@ -1,4 +1,4 @@
-#version: '3.8'
+version: '3.8'
 
 services:
 
@@ -12,7 +12,13 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
 
@@ -30,10 +36,17 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
 
@@ -44,6 +57,12 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
 
@@ -65,13 +84,19 @@ services:
       - SERVER_PORT=8761
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zipkin
+      zipkin:
+        condition: service_healthy
     ports:
       - "8761:8761"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
 
   # Config Server
   config-server:
@@ -83,47 +108,67 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zookeeper
-      - kafka
-      - zipkin
-      - eureka-server
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      zipkin:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     ports:
       - "8888:8888"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
-
 
   # Auth Service
-  auth-service:
-    image: pabitrabera2001/auth-service
-    container_name: auth-service
-    environment:
-      - SERVER_PORT=8083
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=PLAINTEXT://kafka:9092
-      - CONFIG_SERVER_URI=http://config-server:8888
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
-    depends_on:
-      - zookeeper
-      - kafka
-      - redis
-      - zipkin
-      - eureka-server
-      - config-server
-      - spring-cloud-gateway
-    ports:
-      - "8083:8083"
-    restart: unless-stopped
-    networks:
-      - microservices-network
-    pull_policy: always
-
+#  auth-service:
+#    image: pabitrabera2001/auth-service
+#    container_name: auth-service
+#    environment:
+#      - SERVER_PORT=8083
+#      - SPRING_DATA_REDIS_HOST=redis
+#      - SPRING_DATA_REDIS_PORT=6379
+#      - SPRING_KAFKA_BOOTSTRAP_SERVERS=PLAINTEXT://kafka:9092
+#      - CONFIG_SERVER_URI=http://config-server:8888
+#      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+#      - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
+#    depends_on:
+#      zookeeper:
+#        condition: service_healthy
+#      kafka:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#      zipkin:
+#        condition: service_healthy
+#      eureka-server:
+#        condition: service_healthy
+#      config-server:
+#        condition: service_healthy
+#      spring-cloud-gateway:
+#        condition: service_healthy
+#    ports:
+#      - "8083:8083"
+#    restart: on-failure
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+#      interval: 30s
+#      retries: 5
+#      start_period: 30s
+#      timeout: 10s
+#    networks:
+#      - microservices-network
 
   # User Service
+
   user-service:
     image: pabitrabera2001/user-service
     container_name: user-service
@@ -136,22 +181,34 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zookeeper
-      - kafka
-      - redis
-      - zipkin
-      - eureka-server
-      - config-server
-      - spring-cloud-gateway
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      zipkin:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      spring-cloud-gateway:
+        condition: service_healthy
     ports:
       - "8084:8084"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
-
 
   # Course Service
+
   course-service:
     image: pabitrabera2001/course-service
     container_name: course-service
@@ -164,20 +221,31 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zookeeper
-      - kafka
-      - redis
-      - zipkin
-      - eureka-server
-      - config-server
-      - spring-cloud-gateway
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      zipkin:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      spring-cloud-gateway:
+        condition: service_healthy
     ports:
       - "8081:8081"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
-
 
   # Instance Service
   instance-service:
@@ -192,21 +260,29 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zookeeper
-      - kafka
-      - redis
-      - zipkin
-      - eureka-server
-      - config-server
-      - spring-cloud-gateway
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      zipkin:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      spring-cloud-gateway:
+        condition: service_healthy
     ports:
       - "8082:8082"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
-
-
 
   # Spring Cloud Gateway
   spring-cloud-gateway:
@@ -221,18 +297,21 @@ services:
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411/api/v2/spans
     depends_on:
-      - zookeeper
-      - kafka
-      - redis
-      - zipkin
-      - eureka-server
-      - config-server
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
     ports:
       - "8080:8080"
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
     networks:
       - microservices-network
-    pull_policy: always
 
 networks:
   microservices-network:
