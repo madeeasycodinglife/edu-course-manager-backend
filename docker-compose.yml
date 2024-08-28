@@ -354,6 +354,32 @@ services:
     labels:
       - autoheal=true
 
+
+
+  react-frontend:
+    image: pabitrabera2001/course-manager-front-end
+    container_name: react-frontend
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      spring-cloud-gateway:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      course-service:
+        condition: service_healthy
+      instance-service:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    networks:
+      - microservices-network
+
+
 networks:
   microservices-network:
     driver: bridge
