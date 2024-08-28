@@ -40,7 +40,7 @@ services:
         condition: service_healthy
     ports:
       - "9092:9092"
-    restart: on-failure
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "9092"]
       interval: 30s
