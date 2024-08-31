@@ -26,7 +26,15 @@ public class AuthController {
 
     @PostMapping(path = "/sign-up")
     public ResponseEntity<?> singUp(@Valid @RequestBody AuthRequest authRequest) {
-        AuthResponse authResponse = this.authService.singUp(authRequest);
+        AuthResponse authResponse = authService.singUp(authRequest);
+        // Return the appropriate HTTP status based on the response status in AuthResponse
+        if (authResponse.getStatus() == HttpStatus.CONFLICT) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(authResponse);
+        } else if (authResponse.getStatus() == HttpStatus.BAD_REQUEST) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(authResponse);
+        } else if (authResponse.getStatus() == HttpStatus.SERVICE_UNAVAILABLE) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(authResponse);
+        }
         return ResponseEntity.ok().body(authResponse);
     }
 
@@ -50,6 +58,11 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(validatedEmail);
         }
         AuthResponse authResponse = this.authService.partiallyUpdateUser(emailId, userRequest);
+        if (authResponse.getStatus() == HttpStatus.CONFLICT) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(authResponse);
+        } else if (authResponse.getStatus() == HttpStatus.BAD_REQUEST) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(authResponse);
+        }
         return ResponseEntity.ok().body(authResponse);
     }
 

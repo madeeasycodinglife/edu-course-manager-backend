@@ -64,15 +64,25 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse singUp(AuthRequest authRequest) {
         List<String> authRequestRoles = authRequest.getRoles();
 
-        if (!authRequestRoles.contains(Role.ADMIN.name()) && !authRequestRoles.contains(Role.USER.name())) {
-            return null;
+        // Convert all roles to uppercase
+        List<String> normalizedRoles = authRequestRoles.stream()
+                .map(String::toUpperCase) // Convert each role to uppercase
+                .toList();
+
+        // Check if roles contain valid enum names
+        if (!normalizedRoles.contains(Role.ADMIN.name()) && !normalizedRoles.contains(Role.USER.name())) {
+            return AuthResponse.builder()
+                    .message("Invalid roles provided. Allowed roles are ADMIN and USER.")
+                    .status(HttpStatus.BAD_REQUEST)
+                    .build();
         }
+
         List<Role> roles = new ArrayList<>();
-        if (authRequestRoles.size() == 1) {
-            if (authRequestRoles.contains(Role.ADMIN.name())) {
+        if (normalizedRoles.size() == 1) {
+            if (normalizedRoles.contains(Role.ADMIN.name())) {
                 roles.add(Role.ADMIN);
             }
-            if (authRequestRoles.contains(Role.USER.name())) {
+            if (normalizedRoles.contains(Role.USER.name())) {
                 roles.add(Role.USER);
             }
         } else {
@@ -93,14 +103,28 @@ public class AuthServiceImpl implements AuthService {
                 .role(roles)
                 .build();
 
-        // Check if user with the given email already exists
-        if (userRepository.existsByEmail(authRequest.getEmail())) {
-            log.error("User with Email : {} already exists", authRequest.getEmail());
+
+        // Check if a user with the given email or phone already exists
+        boolean emailExists = userRepository.existsByEmail(authRequest.getEmail());
+        boolean phoneExists = userRepository.existsByPhone(authRequest.getPhone());
+
+        if (emailExists && phoneExists) {
             return AuthResponse.builder()
-                    .message("User with Email : " + authRequest.getEmail() + " already exists")
+                    .message("User with Email: " + authRequest.getEmail() + " and Phone: " + authRequest.getPhone() + " already exists.")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        } else if (emailExists) {
+            return AuthResponse.builder()
+                    .message("User with Email: " + authRequest.getEmail() + " already exists.")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        } else if (phoneExists) {
+            return AuthResponse.builder()
+                    .message("User with Phone: " + authRequest.getPhone() + " already exists.")
                     .status(HttpStatus.CONFLICT)
                     .build();
         }
+
 
         String accessToken = jwtUtils.generateAccessToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
         String refreshToken = jwtUtils.generateRefreshToken(user.getEmail(), user.getRole().stream().map(Enum::name).toList());
@@ -286,6 +310,45 @@ public class AuthServiceImpl implements AuthService {
         if (userRequest.getFullName() != null) {
             user.setFullName(userRequest.getFullName());
         }
+
+
+        boolean emailExists = false;
+        boolean phoneExists = false;
+
+        // Check if the new email already exists and belongs to another user
+        if (userRequest.getEmail() != null && !userRequest.getEmail().equals(user.getEmail())) {
+            emailExists = userRepository.existsByEmail(userRequest.getEmail());
+        }
+
+        // Check if the new phone number already exists and belongs to another user
+        if (userRequest.getPhone() != null && !userRequest.getPhone().equals(user.getPhone())) {
+            phoneExists = userRepository.existsByPhone(userRequest.getPhone());
+        }
+
+        // Handle the case where both email and phone already exist
+        if (emailExists && phoneExists) {
+            return AuthResponse.builder()
+                    .status(HttpStatus.CONFLICT)
+                    .message("User with Email: " + userRequest.getEmail() + " and Phone: " + userRequest.getPhone() + " already exist.")
+                    .build();
+        }
+
+        // Handle the case where only email exists
+        if (emailExists) {
+            return AuthResponse.builder()
+                    .status(HttpStatus.CONFLICT)
+                    .message("User with Email: " + userRequest.getEmail() + " already exists.")
+                    .build();
+        }
+
+        // Handle the case where only phone exists
+        if (phoneExists) {
+            return AuthResponse.builder()
+                    .status(HttpStatus.CONFLICT)
+                    .message("User with Phone: " + userRequest.getPhone() + " already exists.")
+                    .build();
+        }
+
         if (userRequest.getEmail() != null) {
             user.setEmail(userRequest.getEmail());
         }
@@ -296,8 +359,34 @@ public class AuthServiceImpl implements AuthService {
             user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
         }
         if (userRequest.getRoles() != null) {
-            user.setRole(userRequest.getRoles().stream().map(Role::valueOf).collect(Collectors.toList()));
+            // Convert all roles to uppercase
+            List<String> normalizedRoles = userRequest.getRoles().stream()
+                    .map(String::toUpperCase) // Convert each role to uppercase
+                    .toList();
+
+            // Validate if roles are valid
+            if (!normalizedRoles.contains(Role.ADMIN.name()) && !normalizedRoles.contains(Role.USER.name())) {
+                return AuthResponse.builder()
+                        .status(HttpStatus.BAD_REQUEST)
+                        .message("Invalid roles provided. Allowed roles are ADMIN and USER.")
+                        .build();
+            }
+
+            List<Role> roles = new ArrayList<>();
+            if (normalizedRoles.size() == 1) {
+                if (normalizedRoles.contains(Role.ADMIN.name())) {
+                    roles.add(Role.ADMIN);
+                }
+                if (normalizedRoles.contains(Role.USER.name())) {
+                    roles.add(Role.USER);
+                }
+            } else {
+                roles.addAll(Arrays.asList(Role.ADMIN, Role.USER));
+            }
+            user.setRole(roles);
         }
+
+
         User savedUser = userRepository.save(user);
 
         if (userRequest.getRoles() != null || userRequest.getEmail() != null) {

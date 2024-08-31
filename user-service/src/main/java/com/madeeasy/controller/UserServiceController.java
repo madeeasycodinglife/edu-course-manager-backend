@@ -26,6 +26,11 @@ public class UserServiceController {
     @PostMapping(path = "/create")
     public ResponseEntity<?> createUser(@Valid @RequestBody UserRequestDTO user) {
         UserAuthResponseDTO savedUser = this.userService.createUser(user);
+        if (savedUser.getStatus() == HttpStatus.CONFLICT) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(savedUser);
+        } else if (savedUser.getStatus() == HttpStatus.BAD_REQUEST) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(savedUser);
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
 
@@ -42,6 +47,13 @@ public class UserServiceController {
                     Map.of("status", HttpStatus.NOT_FOUND,
                             "message", "User not found with emailId: " + emailId)
             );
+        }
+        if (updatedUser.getStatus() == HttpStatus.CONFLICT) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(updatedUser);
+        } else if (updatedUser.getStatus() == HttpStatus.BAD_REQUEST) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(updatedUser);
+        } else if (updatedUser.getStatus() == HttpStatus.SERVICE_UNAVAILABLE) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(updatedUser);
         }
         return ResponseEntity.status(HttpStatus.OK).body(updatedUser);
     }

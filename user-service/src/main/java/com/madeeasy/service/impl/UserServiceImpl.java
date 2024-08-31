@@ -27,10 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -74,13 +71,62 @@ public class UserServiceImpl implements UserService {
             // If not, encrypt it
             rawOrEncodedPassword = passwordEncoder.encode(rawOrEncodedPassword);
         }
+
+
+        // Check if a user with the given email or phone already exists
+        boolean emailExists = userRepository.existsByEmail(user.getEmail());
+        boolean phoneExists = userRepository.existsByPhone(user.getPhone());
+
+        if (emailExists && phoneExists) {
+            return UserAuthResponseDTO.builder()
+                    .message("User with Email: " + user.getEmail() + " and Phone: " + user.getPhone() + " already exists.")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        } else if (emailExists) {
+            return UserAuthResponseDTO.builder()
+                    .message("User with Email: " + user.getEmail() + " already exists.")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        } else if (phoneExists) {
+            return UserAuthResponseDTO.builder()
+                    .message("User with Phone: " + user.getPhone() + " already exists.")
+                    .status(HttpStatus.CONFLICT)
+                    .build();
+        }
+
+        // Convert all roles to uppercase
+        List<String> normalizedRoles = user.getRoles().stream()
+                .map(String::toUpperCase) // Convert each role to uppercase
+                .toList();
+
+        // Check if roles contain valid enum names
+        if (!normalizedRoles.contains(Role.ADMIN.name()) && !normalizedRoles.contains(Role.USER.name())) {
+            return UserAuthResponseDTO.builder()
+                    .message("Invalid roles provided. Allowed roles are ADMIN and USER.")
+                    .status(HttpStatus.BAD_REQUEST)
+                    .build();
+        }
+
+        List<Role> roles = new ArrayList<>();
+        if (normalizedRoles.size() == 1) {
+            if (normalizedRoles.contains(Role.ADMIN.name())) {
+                roles.add(Role.ADMIN);
+            }
+            if (normalizedRoles.contains(Role.USER.name())) {
+                roles.add(Role.USER);
+            }
+        } else {
+            roles.addAll(Arrays.asList(Role.ADMIN, Role.USER));
+        }
+
+
         User userEntity = User.builder()
                 .id(UUID.randomUUID().toString())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .password(rawOrEncodedPassword)
                 .phone(user.getPhone())
-                .roles(user.getRoles().stream().map(Role::valueOf).toList())
+                .roles(roles)
                 .build();
 
         User savedUser = this.userRepository.save(userEntity);
@@ -107,6 +153,44 @@ public class UserServiceImpl implements UserService {
             if (userDetails.getFullName() != null && !userDetails.getFullName().isBlank()) {
                 userRequestDTO.setFullName(userDetails.getFullName());
             }
+
+            boolean emailExists = false;
+            boolean phoneExists = false;
+
+            // Check if the new email already exists and belongs to another user
+            if (userDetails.getEmail() != null && !userDetails.getEmail().isBlank()) {
+                emailExists = userRepository.existsByEmail(userDetails.getEmail());
+            }
+
+            // Check if the new phone number already exists and belongs to another user
+            if (userDetails.getPhone() != null && !userDetails.getPhone().isBlank()) {
+                phoneExists = userRepository.existsByPhone(userDetails.getPhone());
+            }
+
+            // Handle the case where both email and phone already exist
+            if (emailExists && phoneExists) {
+                return UserAuthResponseDTO.builder()
+                        .status(HttpStatus.CONFLICT)
+                        .message("User with Email: " + userDetails.getEmail() + " and Phone: " + userDetails.getPhone() + " already exist.")
+                        .build();
+            }
+
+            // Handle the case where only email exists
+            if (emailExists) {
+                return UserAuthResponseDTO.builder()
+                        .status(HttpStatus.CONFLICT)
+                        .message("User with Email: " + userDetails.getEmail() + " already exists.")
+                        .build();
+            }
+
+            // Handle the case where only phone exists
+            if (phoneExists) {
+                return UserAuthResponseDTO.builder()
+                        .status(HttpStatus.CONFLICT)
+                        .message("User with Phone: " + userDetails.getPhone() + " already exists.")
+                        .build();
+            }
+
             if (userDetails.getEmail() != null && !userDetails.getEmail().isBlank()) {
                 userRequestDTO.setEmail(userDetails.getEmail());
             }
@@ -117,7 +201,31 @@ public class UserServiceImpl implements UserService {
                 userRequestDTO.setPhone(userDetails.getPhone());
             }
             if (userDetails.getRoles() != null && !userDetails.getRoles().isEmpty()) {
-                userRequestDTO.setRoles(userDetails.getRoles());
+                // Convert all roles to uppercase
+                List<String> normalizedRoles = userDetails.getRoles().stream()
+                        .map(String::toUpperCase) // Convert each role to uppercase
+                        .toList();
+
+                // Check if roles contain valid enum names
+                if (!normalizedRoles.contains(Role.ADMIN.name()) && !normalizedRoles.contains(Role.USER.name())) {
+                    return UserAuthResponseDTO.builder()
+                            .message("Invalid roles provided. Allowed roles are ADMIN and USER.")
+                            .status(HttpStatus.BAD_REQUEST)
+                            .build();
+                }
+
+                List<Role> roles = new ArrayList<>();
+                if (normalizedRoles.size() == 1) {
+                    if (normalizedRoles.contains(Role.ADMIN.name())) {
+                        roles.add(Role.ADMIN);
+                    }
+                    if (normalizedRoles.contains(Role.USER.name())) {
+                        roles.add(Role.USER);
+                    }
+                } else {
+                    roles.addAll(Arrays.asList(Role.ADMIN, Role.USER));
+                }
+                userRequestDTO.setRoles(roles.stream().map(Role::name).toList());
             }
 
             // Send update request to auth-service
@@ -155,7 +263,14 @@ public class UserServiceImpl implements UserService {
                 }
                 if (userDetails.getRoles() != null && !userDetails.getRoles().isEmpty()) {
                     // Ensure the roles collection is mutable
-                    foundUser.setRoles(userDetails.getRoles().stream().map(Role::valueOf).collect(Collectors.toCollection(ArrayList::new)));
+                    // Create a mutable ArrayList
+                    List<Role> roles = userRequestDTO.getRoles().stream()
+                            .map(role -> Role.valueOf(role.toUpperCase()))
+                            .collect(Collectors.toCollection(ArrayList::new)); // Use ArrayList to make it mutable
+
+// Set the roles for the found user
+                    foundUser.setRoles(roles);
+
                 }
                 log.info("new update object : {}", foundUser);
                 // Save the updated user to the local repository

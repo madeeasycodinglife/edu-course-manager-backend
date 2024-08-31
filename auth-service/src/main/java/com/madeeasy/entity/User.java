@@ -21,6 +21,7 @@ public class User implements Serializable {
     @Column(unique = true)
     private String email;
     private String password;
+    @Column(unique = true)
     private String phone;
     private boolean isAccountNonExpired;
     private boolean isAccountNonLocked;

@@ -25,6 +25,7 @@ public class User implements Serializable {
     @Column(unique = true)
     private String email;
     private String password;
+    @Column(unique = true)
     private String phone;
     @ElementCollection(targetClass = Role.class)
     @Enumerated(EnumType.STRING)
