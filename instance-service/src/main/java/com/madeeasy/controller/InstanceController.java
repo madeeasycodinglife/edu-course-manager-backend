@@ -27,7 +27,7 @@ public class InstanceController {
     public ResponseEntity<?> createInstance(@Valid @RequestBody CourseInstanceRequestDTO instance) {
         CourseInstanceResponseDTO createdInstance = instanceService.createInstance(instance);
         if (createdInstance.getId() == null) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(createdInstance);
+            return ResponseEntity.status(createdInstance.getStatus()).body(createdInstance);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(createdInstance);
     }
